@@ -1,0 +1,57 @@
+Schema Description:
+===================
+
+1. Fact Table: Employee_Fact
+   - EmployeeNumber: Integer, Primary Key
+   - Age: Integer
+   - DailyRate: Integer
+   - DistanceFromHome: Integer
+   - MonthlyIncome: Integer
+   - NumCompaniesWorked: Integer
+   - YearsAtCompany: Integer
+   - YearsInCurrentRole: Integer
+   - YearsSinceLastPromotion: Integer
+   - TrainingTimesLastYear: Integer
+   - PerformanceRating: Integer
+   - JobSatisfaction: Integer
+   - RelationshipSatisfaction: Integer
+   - EnvironmentSatisfaction: Integer
+   - Attrition: String (e.g., 'Yes', 'No')
+
+2. Dimension Table: Dim_Demographics
+   - EmployeeNumber: Integer, Foreign Key
+   - Gender: String (e.g., 'Male', 'Female')
+   - MaritalStatus: String (e.g., 'Single', 'Married')
+   - Over18: Boolean
+   - Age: Integer
+
+3. Dimension Table: Dim_BusinessTravel
+   - BusinessTravelID: Integer, Primary Key
+   - BusinessTravel: String (categorical)
+
+4. Dimension Table: Dim_Department
+   - DepartmentID: Integer, Primary Key
+   - DepartmentName: String
+
+5. Dimension Table: Dim_Education
+   - EducationID: Integer, Primary Key
+   - Education: String (categorical)
+   - EducationField: String (categorical)
+
+6. Dimension Table: Dim_JobRoles
+   - JobRoleID: Integer, Primary Key
+   - JobRole: String
+   - JobLevel: Integer
+   - JobInvolvement: Integer
+   - HourlyRate: Integer
+   - StockOptionLevel: Integer
+   - WorkLifeBalance: Integer
+
+Unique Values:
+- Gender: ['Male', 'Female']
+- MaritalStatus: ['Single', 'Married', 'Divorced']
+- Over18: [True, False]
+- BusinessTravel: Unique categories from the dataset.
+- Department: Unique department names from the dataset.
+- Education: Unique levels from the dataset.
+- Job Role: Unique job roles from the dataset.
