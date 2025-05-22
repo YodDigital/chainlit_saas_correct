@@ -8,7 +8,9 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "4200:4200"
+    networks:
+      - my-app-network
     volumes:
       - ./workspace:/workspace
       - ./dwh_agents:/workspace/dwh_agents
@@ -18,8 +20,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
     # command: python orchestrator.py
-    command: python -m chainlit run orchestrator.py --host 0.0.0.0 --port 8000
+    command: python -m chainlit run orchestrator.py --host 0.0.0.0 --port 4200
     # command: python -m chainlit hello --host 0.0.0.0 --port 8000
     # command: python -m chainlit hello
     # command: python -m chainlit --version
+
+networks:
+  my-app-network:
+    name: my-app-network
+    external: true
 

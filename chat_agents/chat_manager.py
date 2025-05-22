@@ -5,15 +5,16 @@ from chat_agents.request_formulation_agent import create_formulation_agent
 from chat_agents.user_agent import create_user_agent
 
 class ChatManager:
-    def __init__(self, db_path, llm_config, work_dir):
+    def __init__(self, db_path, llm_config, work_dir, schema_path):
         self.db_path = db_path
         self.llm_config = llm_config
         self.work_dir = work_dir
+        self.schema_path = schema_path
 
         # Initialize agents with clear system messages
         self.user_agent = create_user_agent()
         self.analysis_agent = create_analysis_agent(llm_config, work_dir)
-        self.formulation_agent = create_formulation_agent(llm_config, work_dir)
+        self.formulation_agent = create_formulation_agent(llm_config, work_dir, schema_path)
         self.db_agent = create_database_query_agent(db_path, llm_config)
 
         # Set up GroupChat (automatic mode)

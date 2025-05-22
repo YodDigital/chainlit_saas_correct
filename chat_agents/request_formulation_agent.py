@@ -3,9 +3,9 @@ from .chainlit_agents import ChainlitAssistantAgent
 import os
 from pathlib import Path
 
-def create_formulation_agent(llm_config, work_dir):
+def create_formulation_agent(llm_config, work_dir, schema_path):
     # Load schema content - read the full file for validation purposes
-    schema_path = "/workspace/schema_description.txt"
+    # schema_path = "/workspace/schema_description.txt"
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
             full_schema_content = f.read()
