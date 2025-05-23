@@ -138,19 +138,20 @@ from typing import Optional
 
 async def get_authenticated_user():
     try:
-        # Method 1: Preferred way (Chainlit 1.0+)
+        query_string = ""
+        
         if hasattr(cl.context.session, 'client_headers'):
             headers = cl.context.session.client_headers
+            print("Client Headers:", headers)
             query_string = headers.get("x-forwarded-query", headers.get("query_string", ""))
         
-        # Method 2: Fallback for older versions
-        else:
+        if not query_string:
             query_string = cl.user_session.get("query_params", {}).get("raw", "")
-        
-        # Parse the query string
+            print("Fallback Query String:", query_string)
+
         params = parse_qs(query_string)
-        
-        # Extract values (parse_qs returns lists for each key)
+        print("Parsed Params:", params)
+
         user_id = params.get("user_id", [None])[0]
         token = params.get("token", [None])[0]
         flask_base_url = params.get("flask_base_url", [None])[0]
