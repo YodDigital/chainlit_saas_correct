@@ -130,9 +130,21 @@ from typing import Optional
 #         print(f"Visualization error: {str(e)}")
 #         return None
 
+# async def get_authenticated_user():
+#     params = cl.user_session.get("query_params")
+#     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
+
+
 async def get_authenticated_user():
-    params = cl.user_session.get("query_params")
-    return params.get("user_id"), params.get("token"), params.get("flask_base_url")
+    # Get the full query string from the client request
+    query_string = cl.context.session.client_info["headers"].get("query_string", "")
+    params = dict((pair.split('=') for pair in query_string.split('&')) if query_string else {})
+
+    # Validate required params
+    if not all(key in params for key in ["user_id", "token"]):
+        raise ValueError("Missing required parameters (user_id or token).")
+    
+    return params["user_id"], params["token"], params.get("flask_base_url")
 
 async def fetch_user_session(user_id, token):
     async with aiohttp.ClientSession() as session:
