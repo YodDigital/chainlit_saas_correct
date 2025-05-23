@@ -139,11 +139,13 @@ from typing import Optional
 async def get_authenticated_user():
     try:
         # Method 1: Try direct from headers (works on Railway)
-        headers = cl.context.session.root.headers
+        headers = cl.context.session
+        print(f'Raphy: {headers}')
         query_string = headers.get("x-forwarded-query", "")
         
         # Method 2: Fallback to standard query string
         if not query_string:
+            print(f'Raphy: {headers}')
             query_string = headers.get("query_string", b"").decode()
         
         # Parse parameters
