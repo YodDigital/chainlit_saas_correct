@@ -26,11 +26,16 @@ RUN pip install --no-cache-dir \
     flaml[automl] \
     matplotlib
 
+# Copy your script (optional - better to mount for development)
+COPY orchestrator.py /workspace/orchestrator.py
+COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
+COPY dwh_agents /workspace/dwh_agents
+COPY chat_agents /workspace/chat_agents
+
 # Expose Chainlit port
-EXPOSE 8000
+EXPOSE 4200
 
 # Default run command (can still be overridden in docker-compose.yml)
-CMD ["chainlit", "hello", "--host", "0.0.0.0", "--port", "4200"]
+CMD ["python", "-m", "chainlit", "run", "orchestrator.py", "--host", "0.0.0.0", "--port", "4200"]
 
-# Copy your script (optional - better to mount for development)
-# COPY orchestrator.py /workspace/orchestrator.py
+
