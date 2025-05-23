@@ -138,31 +138,31 @@ from typing import Optional
 
 async def get_authenticated_user():
     try:
-        query_string = ""
+        # Method 1: Try direct from headers (works on Railway)
+        headers = cl.context.session.root.headers
+        query_string = headers.get("x-forwarded-query", "")
         
-        if hasattr(cl.context.session, 'client_headers'):
-            headers = cl.context.session.client_headers
-            print("Client Headers:", headers)
-            query_string = headers.get("x-forwarded-query", headers.get("query_string", ""))
-        
+        # Method 2: Fallback to standard query string
         if not query_string:
-            query_string = cl.user_session.get("query_params", {}).get("raw", "")
-            print("Fallback Query String:", query_string)
-
-        params = parse_qs(query_string)
-        print("Parsed Params:", params)
-
-        user_id = params.get("user_id", [None])[0]
-        token = params.get("token", [None])[0]
-        flask_base_url = params.get("flask_base_url", [None])[0]
-
-        if not user_id or not token:
-            raise ValueError("Missing required parameters (user_id or token)")
+            query_string = headers.get("query_string", b"").decode()
         
-        return user_id, token, flask_base_url
-
+        # Parse parameters
+        params = parse_qs(query_string)
+        params = {k: v[0] for k, v in params.items()}  # Get first values
+        
+        # Debug output
+        print(f"Raw headers: {headers}")
+        print(f"Query string: {query_string}")
+        print(f"Parsed params: {params}")
+        
+        # Validate
+        if not all(k in params for k in ["user_id", "token"]):
+            raise ValueError("Missing parameters")
+            
+        return params["user_id"], params["token"], params.get("flask_base_url"), params.get("username")
+        
     except Exception as e:
-        raise ValueError(f"Failed to authenticate: {str(e)}")
+        raise ValueError(f"Auth failed: {str(e)}")
 
 async def fetch_user_session(user_id, token):
     async with aiohttp.ClientSession() as session:

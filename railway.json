@@ -4,5 +4,14 @@
   },
   "deploy": {
     "startCommand": "python -m chainlit run orchestrator.py --host 0.0.0.0 --port 4200"
+  },
+  "routes": {
+    "/": {
+      "headers": {
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+        "X-Forwarded-Query": "$query_string"
+      }
+    }
   }
 }
