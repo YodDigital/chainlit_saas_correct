@@ -1,3 +1,4 @@
+from urllib.parse import parse_qs
 import aiohttp
 from dwh_agents.dwh_code_generator_agent import create_dwh_agent
 from dwh_agents.dwh_code_executor_agent import create_executor_agent
@@ -136,15 +137,31 @@ from typing import Optional
 
 
 async def get_authenticated_user():
-    # Get the full query string from the client request
-    query_string = cl.context.session.client_info["headers"].get("query_string", "")
-    params = dict((pair.split('=') for pair in query_string.split('&')) if query_string else {})
+    try:
+        # Method 1: Preferred way (Chainlit 1.0+)
+        if hasattr(cl.context.session, 'client_headers'):
+            headers = cl.context.session.client_headers
+            query_string = headers.get("x-forwarded-query", headers.get("query_string", ""))
+        
+        # Method 2: Fallback for older versions
+        else:
+            query_string = cl.user_session.get("query_params", {}).get("raw", "")
+        
+        # Parse the query string
+        params = parse_qs(query_string)
+        
+        # Extract values (parse_qs returns lists for each key)
+        user_id = params.get("user_id", [None])[0]
+        token = params.get("token", [None])[0]
+        flask_base_url = params.get("flask_base_url", [None])[0]
 
-    # Validate required params
-    if not all(key in params for key in ["user_id", "token"]):
-        raise ValueError("Missing required parameters (user_id or token).")
-    
-    return params["user_id"], params["token"], params.get("flask_base_url")
+        if not user_id or not token:
+            raise ValueError("Missing required parameters (user_id or token)")
+        
+        return user_id, token, flask_base_url
+
+    except Exception as e:
+        raise ValueError(f"Failed to authenticate: {str(e)}")
 
 async def fetch_user_session(user_id, token):
     async with aiohttp.ClientSession() as session:
