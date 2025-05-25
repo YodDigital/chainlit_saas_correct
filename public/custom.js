@@ -10,6 +10,7 @@ window.onload = function() {
     window.sendChainlitMessage({
     type: "url_params",
     params: params
-    });    };
+    });    
+};
     
 
