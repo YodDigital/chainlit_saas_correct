@@ -136,36 +136,16 @@ from typing import Optional
 #     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
 
 
-async def get_authenticated_user():
-    try:
-        # Method 1: Try direct from headers (works on Railway)
-        headers = cl.context.session
-        print(f'Raphy: {headers}')
-        query_string = headers.get("x-forwarded-query", "")
-        
-        # Method 2: Fallback to standard query string
-        if not query_string:
-            print(f'Raphy: {headers}')
-            query_string = headers.get("query_string", b"").decode()
-        
-        # Parse parameters
-        params = parse_qs(query_string)
-        params = {k: v[0] for k, v in params.items()}  # Get first values
-        
-        # Debug output
-        print(f"Raw headers: {headers}")
-        print(f"Query string: {query_string}")
-        print(f"Parsed params: {params}")
-        
-        # Validate
-        if not all(k in params for k in ["user_id", "token"]):
-            raise ValueError("Missing parameters")
-            
-        return params["user_id"], params["token"], params.get("flask_base_url"), params.get("username")
-        
-    except Exception as e:
-        raise ValueError(f"Auth failed: {str(e)}")
+@cl.on_window_message
+def handle_url_params(message: str):
+    if message["type"] == "url_params":
+        url_params = message["params"]
+        cl.user_session.set("url_params", url_params)
+        print(f"URL parameters received: {url_params}")
 
+async def get_authenticated_user():
+    params = cl.user_session.get("url_params")
+    return params.get("user_id"), params.get("token"), params.get("flask_base_url")
 async def fetch_user_session(user_id, token):
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{os.getenv('FLASK_BASE_URL')}/api/user_session/{user_id}", headers={"Authorization": f"Bearer {token}"}) as resp:
