@@ -77,8 +77,8 @@ import os
 import matplotlib.pyplot as plt
 import io
 import base64
-import httpx
 from typing import Optional
+import asyncio
 
 def generate_visualization(query_result):
     """Auto-generate visualization based on query results."""
@@ -136,12 +136,12 @@ def generate_visualization(query_result):
 #     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
 
 
-@cl.on_window_message
-def handle_url_params(message: str):
-    if message["type"] == "url_params":
-        url_params = message["params"]
-        cl.user_session.set("url_params", url_params)
-        print(f"URL parameters received: {url_params}")
+# @cl.on_window_message
+# def handle_url_params(message: str):
+#     if message["type"] == "url_params":
+#         url_params = message["params"]
+#         cl.user_session.set("url_params", url_params)
+#         print(f"URL parameters received: {url_params}")
 
 async def get_authenticated_user():
     url_params = cl.user_session.get("url_params")
@@ -178,6 +178,48 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
+    """Load and inject custom JavaScript on chat start"""
+    
+    # Load your custom.js file
+    script_path = "public/custom.js"
+
+    try:
+        # Check if the script has already been injected (using a session variable)
+        if cl.user_session.get("custom_js_injected"):
+            print("Custom JavaScript already injected, skipping.")
+            return  # Skip injection if already done
+            
+        async def read_file_async(path):
+            """Asynchronously read the file content."""
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, lambda: open(path, 'r', encoding='utf-8').read())
+
+        js_content = await read_file_async(script_path)
+
+        # Inject the script
+        await cl.Html(
+            content=f"""
+            <script>
+            {js_content}
+            </script>
+            <div style="display: none;">Script loaded</div>
+            """,
+            display="inline"
+        ).send()
+        
+        print("Custom JavaScript injected successfully")        
+        # Set a session variable to indicate that the script has been injected
+        cl.user_session.set("custom_js_injected", True)
+        
+    except FileNotFoundError:
+        print(f"Custom script not found at {script_path}")
+        await cl.Message(
+            content="⚠️ Custom script not found",
+            author="System"
+        ).send()
+    except Exception as e:
+        print(f"Error loading custom script: {e}")
+    
     user_id, token, flask_base_url = await get_authenticated_user()
         
     if not user_id:

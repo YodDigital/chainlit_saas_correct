@@ -1,4 +1,5 @@
 [UI]
 custom_js = "/public/custom.js"
     
-
+[project]
+enable_telemetry = false
