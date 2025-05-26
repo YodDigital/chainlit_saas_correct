@@ -32,7 +32,14 @@ COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-At
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
 COPY public /workspace/public
-COPY .chainlit .chainlit
+
+# Create chainlit directory and copy config
+RUN mkdir -p .chainlit
+COPY .chainlit/config.toml .chainlit/config.toml
+
+# Set proper permissions
+RUN chmod -R 755 .chainlit public
+
 # Expose Chainlit port
 EXPOSE 4200
 

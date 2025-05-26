@@ -1,5 +1,86 @@
-[UI]
-custom_js = "/public/custom.js"
-    
-[project]
+# .chainlit/config.toml
+
+[project]# Whether to enable telemetry (default: true). No personal data is collected.
 enable_telemetry = false
+
+# List of environment variables to be provided by each user to use the app.
+user_env = []
+
+# Duration (in seconds) during which the session is saved when the connection is lost
+session_timeout = 3600
+
+# Enable third parties caching (e.g LangChain cache)
+cache = false
+
+# Authorized origins
+allow_origins = ["*"]
+
+# Follow symlink for asset mount (see https://github.com/Chainlit/chainlit/issues/317)
+# follow_symlink = false # REMOVED: No longer needed in recent versions
+
+[features]
+# Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
+unsafe_allow_html = false
+
+# Process and display mathematical expressions. This can clash with "$" characters in messages.
+latex = false
+
+# Automatically tag threads the user participates in. Defaults to true.
+auto_tag_thread = true
+
+# Collapse large code blocks by default.
+collapse_large_code_blocks = true # REMOVED: Replaced by default_collapse_content in [UI]
+
+# Show the prompt playground
+#prompt_playground = true # REMOVED: Debugging is now handled differently
+
+[UI]
+# Name of the app and chatbot.
+name = "Chainlit App"
+
+# Description of the app and chatbot. This is used for HTML tags.
+# description = ""
+
+# Large size content are by default collapsed for a better user experience. Set this to false to disable.
+default_collapse_content = true
+
+# The default value for the expand messages settings.
+default_expand_messages = false
+
+# Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
+cot = "full" # Replaces hide_cot# Link to your github repo. This will add a github button in the UI's header.
+# github = ""
+
+# Specify a CSS file that can be used to customize the user interface.
+# The CSS file can be served from the public directory or via an external link.
+# custom_css = "/public/style.css"
+
+# Specify a Javascript file that can be used to customize the user interface.
+# The Javascript file can be served from the public directory.
+custom_js = "/public/custom.js"
+
+# Override default MUI light theme. (Check theme.ts)#[UI.theme] # REMOVED: Theme customization is now done via theme.json
+#primary_color = "#F80061"
+#background_color = "#FAFAFA"
+#text_color = "#212121"
+#paper_color = "#FFFFFF"
+
+[UI.theme.light]
+#background = "#FAFAFA"
+#paper = "#FFFFFF"
+
+[UI.theme.dark]
+#background = "#212121"
+#paper = "#424242"
+
+# Customize the font used in the UI.
+[UI.theme.font]
+#url = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+#family = "Inter"
+
+# Show the readme while the thread is empty.
+#show_readme_as_default = true # REMOVED: Starters are the preferred way to guide users
+
+#[meta] # REMOVED: This section is automatically managed by Chainlit
+#generated_by = "1.0.0"
+
