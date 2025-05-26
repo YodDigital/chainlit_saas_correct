@@ -79,6 +79,7 @@ import io
 import base64
 from typing import Optional
 import asyncio
+import aiohttp  # Import aiohttp
 
 def generate_visualization(query_result):
     """Auto-generate visualization based on query results."""
@@ -136,12 +137,43 @@ def generate_visualization(query_result):
 #     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
 
 
-# @cl.on_window_message
-# def handle_url_params(message: str):
-#     if message["type"] == "url_params":
-#         url_params = message["params"]
-#         cl.user_session.set("url_params", url_params)
-#         print(f"URL parameters received: {url_params}")
+@cl.on_window_message
+async def handle_url_params(message: dict):
+    """Handle messages from the frontend JavaScript"""
+    try:
+        if message.get("type") == "url_params":
+            url_params = message.get("params", {})
+
+            # Parameter Validation (Example)
+            user_id = url_params.get("user_id")
+            if user_id and not isinstance(user_id, str):
+                await cl.Message(
+                    content="❌ Invalid URL parameters: user_id must be a string",
+                    author="System",
+                ).send()
+                return
+
+            # Store in user session
+            cl.user_session.set("url_params", url_params)
+
+            # Log the parameters
+            print(f"URL parameters received: {url_params}")
+
+            # Optional: Send confirmation message to chat
+            await cl.Message(
+                content="✅ URL parameters loaded successfully",
+                author="System"
+            ).send()
+
+            # You can now access these params in other functions:
+            # params = cl.user_session.get("url_params")
+
+    except Exception as e:
+        print(f"Error handling URL parameters: {e}")
+        await cl.Message(
+            content="❌ Error processing URL parameters",
+            author="System"
+        ).send()
 
 async def get_authenticated_user():
     url_params = cl.user_session.get("url_params")
@@ -158,7 +190,7 @@ async def fetch_user_session(user_id, token):
     if not user_id or not token:
         print("User ID or token is missing.")
         return None
-    
+
     flask_base_url = os.getenv('FLASK_BASE_URL')
     if not flask_base_url:
         print("FLASK_BASE_URL environment variable not set.")
@@ -178,7 +210,7 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-    """Load and inject custom JavaScript on chat start"""
+    """Initialize the chat session"""
     
     # Load your custom.js file
     script_path = "public/custom.js"
@@ -187,6 +219,12 @@ async def start_chat():
         # Check if the script has already been injected (using a session variable)
         if cl.user_session.get("custom_js_injected"):
             print("Custom JavaScript already injected, skipping.")
+            # Fetch user data even if script is already injected
+            user_id, token, flask_base_url = await get_authenticated_user()
+            if not user_id:
+                await cl.Message(content="Please login through the main app first").send()
+                return
+            await load_user_data(user_id, token, flask_base_url)
             return  # Skip injection if already done
             
         async def read_file_async(path):
@@ -197,8 +235,7 @@ async def start_chat():
         js_content = await read_file_async(script_path)
 
         # Inject the script
-        await cl.Html(
-            content=f"""
+        await cl.Html(            content=f"""
             <script>
             {js_content}
             </script>
@@ -226,6 +263,9 @@ async def start_chat():
         await cl.Message(content="Please login through the main app first").send()
         return
     
+    await load_user_data(user_id, token, flask_base_url)
+        
+async def load_user_data(user_id, token, flask_base_url):
     # Save these in session if needed later
     cl.user_session.set("user_id", user_id)
     cl.user_session.set("token", token)
@@ -248,10 +288,14 @@ async def start_chat():
     #     llm_config=llm_config,
     #     work_dir="workspace"
     # )
+    # Ensure workspace directory exists
+    workspace_dir = f"workspace/user_{user_id}"
+    os.makedirs(workspace_dir, exist_ok=True)
+    
     chat_manager = ChatManager(
         db_path=session_data['warehouse_file_path'],  # From session
         llm_config=llm_config,
-        work_dir=f"workspace/user_{user_id}",  # User-specific workspace
+        work_dir=workspace_dir,  # User-specific workspace
         schema_path=session_data['schema_description']  # From session
     )
     
@@ -284,8 +328,7 @@ async def main(message: cl.Message):
     # Find and display the final result
     for msg in reversed(chat_manager.group_chat.messages):
         if msg["name"] == "db_agent":
-            # Send raw results first
-            await cl.Message(content=f"Result: {msg['content']}").send()
+            # Send raw results first            await cl.Message(content=f"Result: {msg['content']}").send()
 
             # Auto-generate visualization
             viz = generate_visualization(msg['content'])

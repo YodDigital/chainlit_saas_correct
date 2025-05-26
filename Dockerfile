@@ -32,6 +32,7 @@ COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-At
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
 COPY public /workspace/public
+COPY .chainlit .chainlit
 # Expose Chainlit port
 EXPOSE 4200
 
