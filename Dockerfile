@@ -31,14 +31,7 @@ COPY orchestrator.py /workspace/orchestrator.py
 COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
-COPY public /workspace/public
-
-# Create chainlit directory and copy config
-RUN mkdir -p .chainlit
-COPY .chainlit/config.toml .chainlit/config.toml
-
-# Set proper permissions
-RUN chmod -R 755 .chainlit public
+COPY public /public
 
 # Expose Chainlit port
 EXPOSE 4200
