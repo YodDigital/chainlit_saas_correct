@@ -4,6 +4,7 @@ from dwh_agents.dwh_code_generator_agent import create_dwh_agent
 from dwh_agents.dwh_code_executor_agent import create_executor_agent
 from pathlib import Path
 import os
+import requests
 import pandas as pd
 
 
@@ -175,16 +176,54 @@ async def handle_url_params(message: dict):
             author="System"
         ).send()
 
-async def get_authenticated_user():
-    url_params = cl.user_session.get("url_params")
-    if url_params:
-        user_id = url_params.get("user_id")
-        token = url_params.get("token")
-        flask_base_url = url_params.get("flask_base_url")
-        return user_id, token, flask_base_url
-    else:
-        print("URL parameters not found in user session.")
-        return None, None, None
+def get_auth_from_cookies():
+    """Extract authentication parameters from browser cookies"""
+    try:
+        # Get cookies from the current session
+        # Note: This depends on how Chainlit exposes cookies - you might need to use JavaScript
+        cookies = cl.context.session.get('cookies', {})
+        
+        auth_data = {
+            'user_id': cookies.get('auth_user_id'),
+            'token': cookies.get('auth_token'),
+            'flask_base_url': cookies.get('flask_base_url'),
+            'username': cookies.get('username'),
+            'auth_timestamp': cookies.get('auth_timestamp')
+        }
+        
+        # Validate that all required fields are present
+        required_fields = ['user_id', 'token', 'flask_base_url', 'username']
+        if not all(auth_data.get(field) for field in required_fields):
+            return None
+            
+        return auth_data
+    except Exception as e:
+        print(f"Error reading cookies: {e}")
+        return None
+
+async def validate_auth_with_flask(auth_data):
+    """Validate authentication with Flask backend"""
+    try:
+        flask_base_url = auth_data['flask_base_url']
+        validation_url = f"{flask_base_url}api/validate-auth"
+        
+        payload = {
+            'user_id': auth_data['user_id'],
+            'token': auth_data['token']
+        }
+        
+        response = requests.post(validation_url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            user_data = response.json()
+            return user_data
+        else:
+            print(f"Auth validation failed: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"Error validating auth: {e}")
+        return None
 
 async def fetch_user_session(user_id, token):
     if not user_id or not token:
@@ -210,66 +249,37 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-    """Initialize the chat session"""
+    """Initialize chat session with authentication"""
     
-    # Load your custom.js file
-    script_path = "public/custom.js"
-
-    try:
-        # Check if the script has already been injected (using a session variable)
-        if cl.user_session.get("custom_js_injected"):
-            print("Custom JavaScript already injected, skipping.")
-            # Fetch user data even if script is already injected
-            user_id, token, flask_base_url = await get_authenticated_user()
-            if not user_id:
-                await cl.Message(content="Please login through the main app first").send()
-                return
-            await load_user_data(user_id, token, flask_base_url)
-            return  # Skip injection if already done
-            
-        async def read_file_async(path):
-            """Asynchronously read the file content."""
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, lambda: open(path, 'r', encoding='utf-8').read())
-
-        js_content = await read_file_async(script_path)
-
-        # Inject the script
-        await cl.Html(            content=f"""
-            <script>
-            {js_content}
-            </script>
-            <div style="display: none;">Script loaded</div>
-            """,
-            display="inline"
-        ).send()
-        
-        print("Custom JavaScript injected successfully")        
-        # Set a session variable to indicate that the script has been injected
-        cl.user_session.set("custom_js_injected", True)
-        
-    except FileNotFoundError:
-        print(f"Custom script not found at {script_path}")
+    # Get authentication data from cookies
+    auth_data = get_auth_from_cookies()
+    
+    if not auth_data:
         await cl.Message(
-            content="⚠️ Custom script not found",
+            content="❌ Authentication failed. Please log in through the main application.",
             author="System"
         ).send()
-    except Exception as e:
-        print(f"Error loading custom script: {e}")
-    
-    user_id, token, flask_base_url = await get_authenticated_user()
-        
-    if not user_id:
-        await cl.Message(content="Please login through the main app first").send()
         return
     
-    await load_user_data(user_id, token, flask_base_url)
+    # Validate authentication with Flask backend
+    user_data = await validate_auth_with_flask(auth_data)
+    
+    if not user_data:
+        await cl.Message(
+            content="❌ Authentication validation failed. Please log in again.",
+            author="System"
+        ).send()
+        return
+    
+    await load_user_data(auth_data['user_id'], auth_data['token'])
+   # Store user data in session
+    cl.user_session.set("user_id", auth_data['user_id'])
+    cl.user_session.set("username", auth_data['username'])
+    cl.user_session.set("flask_base_url", auth_data['flask_base_url'])
+    cl.user_session.set("user_data", user_data)
+    
         
-async def load_user_data(user_id, token, flask_base_url):
-    # Save these in session if needed later
-    cl.user_session.set("user_id", user_id)
-    cl.user_session.set("token", token)
-    cl.user_session.set("flask_base_url", flask_base_url)
+async def load_user_data(user_id, token):
 
     # Fetch user session data from Flask backend
     session_data = await fetch_user_session(user_id, token)
