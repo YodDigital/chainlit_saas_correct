@@ -275,7 +275,7 @@ def get_auth_from_cookies():
 
 @cl.on_message
 async def main(message: cl.Message):
-    if message.type == "system_message" and message.content.startswith("Cookies:"):
+    if message:
         try:            
             cookies = message.content
             print(f"Received cookies: {cookies}")

@@ -5,9 +5,8 @@ window.getCookiesAndSend = () => {
     return acc;
   }, {});
 
-  window.chainlit.sendMessage({
-    type: 'system_message',
-    content: 'Cookies: ' + JSON.stringify(cookies),
-  });
+  window.chainlit.sendMessage(JSON.stringify(cookies));
 };
 
+// Call getCookiesAndSend after the Chainlit UI is ready (with a delay)
+setTimeout(window.getCookiesAndSend, 1000);
