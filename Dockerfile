@@ -16,8 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory
 WORKDIR /workspace
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade chainlit
 
 # Install Python packages
 RUN pip install --no-cache-dir \
@@ -37,7 +36,6 @@ COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-At
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
 COPY public /workspace/public
-COPY .chainlit /workspace/.chainlit
 
 # # Install React dependencies if package.json exists
 # RUN if [ -f /public/package.json ]; then \
