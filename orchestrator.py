@@ -82,6 +82,7 @@ import base64
 from typing import Optional
 import asyncio
 import aiohttp
+import aiofiles
 from concurrent.futures import ThreadPoolExecutor
 
 executor = ThreadPoolExecutor()  # Create a ThreadPoolExecutor instance
@@ -225,6 +226,47 @@ def get_auth_from_cookies(cookies_dict):
         print(f"Error extracting auth from cookies: {e}")
         return None
 
+async def load_schema_from_url(schema_url, local_path):
+    """Download schema file from URL to local path"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(schema_url) as response:
+                if response.status == 200:
+                    content = await response.text()
+                    # Save to local file
+                    async with aiofiles.open(local_path, 'w', encoding='utf-8') as f:
+                        await f.write(content)
+                    return local_path
+                else:
+                    print(f"Failed to download schema: {response.status}")
+                    return None
+    except Exception as e:
+        print(f"Error downloading schema: {e}")
+        return None
+
+async def download_database(db_url, local_path):
+    """Download database file from URL to local path"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(db_url) as response:
+                if response.status == 200:
+                    # Ensure directory exists
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                    
+                    # Download binary content
+                    content = await response.read()
+                    
+                    # Save to local file (binary mode for .db files)
+                    async with aiofiles.open(local_path, 'wb') as f:
+                        await f.write(content)
+                    
+                    return local_path
+                else:
+                    print(f"Failed to download database: {response.status}")
+                    return None
+    except Exception as e:
+        print(f"Error downloading database: {e}")
+        return None
 
 async def load_user_data(user_id, token):
 
@@ -254,11 +296,21 @@ async def load_user_data(user_id, token):
     # cl.user_session.set("user_id", user_id)
     cl.user_session.set("session_data", session_data)
 
+    local_schema_path = os.path.join(workspace_dir, 'schema.txt')
+    schema_path = await load_schema_from_url(schema_path, local_schema_path)
+
+    local_db_path = os.path.join(workspace_dir, f'database_{user_id}.db')
+    db_path = await download_database(cl.user_session.get("session_data", {}).get('schema_description', ''), local_db_path)
+    
+    if not db_path:
+        await cl.Message(content="Failed to download database file").send()
+        return
+
     chat_manager = ChatManager(
-        db_path=cl.user_session.get("session_data", {}).get('schema_description', ''),  # From session
+        db_path=db_path,  # From session
         llm_config=llm_config,
         work_dir=workspace_dir,  # User-specific workspace
-        schema_path=cl.user_session.get("session_data", {}).get('warehouse_file_path', '')  # From session
+        schema_path=schema_path  # From session
     )
     
     cl.user_session.set("chat_manager", chat_manager)
