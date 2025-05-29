@@ -432,5 +432,5 @@ async def handle_chat_message(user_message):
 # #I want the number of women who are single and work as reseach scientists
 
 # {
-# "auth_token":"1-YSHc8t4h1K8IS_nOsRyMMg",  "auth_user_id":"1", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy", "auth_timestamp":"1748546485"
+# "auth_token":"1-HeWrBUjuerjoSfGwq1h26w",  "auth_user_id":"1", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy", "auth_timestamp":"1748548619"
 # }
