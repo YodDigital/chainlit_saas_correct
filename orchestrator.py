@@ -297,7 +297,7 @@ async def load_user_data(user_id, token):
     cl.user_session.set("session_data", session_data)
 
     local_schema_path = os.path.join(workspace_dir, 'schema.txt')
-    schema_path = await load_schema_from_url(schema_path, local_schema_path)
+    schema_path = await load_schema_from_url(cl.user_session.get("session_data", {}).get('schema_description', ''), local_schema_path)
 
     local_db_path = os.path.join(workspace_dir, f'database_{user_id}.db')
     db_path = await download_database(cl.user_session.get("session_data", {}).get('schema_description', ''), local_db_path)
@@ -490,5 +490,5 @@ async def handle_chat_message(user_message):
 # #I want the number of women who are single and work as reseach scientists
 
 # {
-# "auth_token":"3-nMiAUguUmzZKhaoytPbboQ",  "auth_user_id":"3", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_08", "auth_timestamp":"1748555269"
+# "auth_token":"3-tmAdo8xG9cSWlMqwoyjYZA",  "auth_user_id":"3", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_08", "auth_timestamp":"1748561293"
 # }
