@@ -212,20 +212,7 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start():
-    # Inject a script to read cookies and send them as a message
-    # THIS IS NOT RECOMMENDED - It's better to use a separate custom.js file
-    js_code = """
-    <script>
-    function sendCookies() {
-        const cookies = document.cookie;
-        window.chainlit.sendMessage(cookies);
-    }
-
-    // Call sendCookies after the Chainlit UI is ready (you might need a delay)
-    setTimeout(sendCookies, 1000);
-    </script>
-    """
-    await cl.Message(content=js_code, is_html=True).send()
+    await cl.Message(content="Getting cookies").send()
 
         
 async def load_user_data(user_id, token):
