@@ -1,0 +1,13 @@
+{
+  "name": "chainlit-react-components",
+  "version": "0.1.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@chainlit/react-client": "latest",
+    "recoil": "^0.7.7"
+  },
+  "scripts": {
+    "build": "webpack --mode production"
+  }
+}

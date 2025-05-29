@@ -1,14 +1,4 @@
-# Multi-stage build: React frontend + Python backend
-FROM node:18-alpine AS react-build
-
-# Build React frontend
-WORKDIR /app/frontend
-COPY public/package*.json ./
-RUN npm install
-COPY public/ .
-RUN npm run build
-
-# Main Python application stage
+# AutoGen Data Science Image
 FROM python:3.11-slim
 
 # Install essential tools, PostgreSQL client libraries, and Node.js
@@ -40,20 +30,22 @@ RUN pip install --no-cache-dir \
     flaml[automl] \
     matplotlib
 
-# Copy built React files from the first stage
-COPY --from=react-build /app/frontend/build ./static/
-
-# Copy your Python application files
+# Copy your script files
 COPY orchestrator.py /workspace/orchestrator.py
 COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
-
-# Copy the source React files (for development)
 COPY public /workspace/public
+
+# # Install React dependencies if package.json exists
+# RUN if [ -f /workspace/public/package.json ]; then \
+#         cd /workspace/public && \
+#         npm install @chainlit/react-client recoil && \
+#         npm run build; \
+#     fi
 
 # Expose Chainlit port
 EXPOSE 4200
 
-# Default run command (can still be overridden in docker-compose.yml)
+# Default run command
 CMD ["python", "-m", "chainlit", "run", "orchestrator.py", "--host", "0.0.0.0", "--port", "4200"]
