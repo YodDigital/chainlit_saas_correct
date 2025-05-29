@@ -82,23 +82,39 @@ import base64
 from typing import Optional
 import asyncio
 import aiohttp
+from concurrent.futures import ThreadPoolExecutor
+
+executor = ThreadPoolExecutor()  # Create a ThreadPoolExecutor instance
 
 
 def generate_visualization(query_result):
     """Auto-generate visualization based on query results."""
     try:
+        if query_result is None:
+            return None
+
         # Check if result is tabular data (assumes it's convertible to DataFrame)
         if isinstance(query_result, str):
             # Try to parse string as table (common SQL result format)
             if "|" in query_result:  # Chainlit's default table format
                 lines = [line.split("|") for line in query_result.split("\n") if line.strip()]
                 if len(lines) > 2:  # Header + separator + at least one row
-                    df = pd.DataFrame(lines[2:], columns=lines[0])
-                    df = df.apply(lambda x: x.str.strip())
+                    try:
+                        df = pd.DataFrame([lines[i] for i in range(2, len(lines))], columns=lines[0])                        
+                        df = df.apply(lambda x: x.str.strip())
+                    except Exception as e:
+                        print(f"Error creating DataFrame: {e}")
+                        return None
+                else:
+                    return None  # Not visualizable data
             else:
                 return None  # Not visualizable data
         else:
-            df = pd.DataFrame(query_result)
+            try:
+                df = pd.DataFrame(query_result)
+            except Exception as e:
+                print(f"Error creating DataFrame: {e}")
+                return None
         
         # Clean dataframe
         df = df.dropna(how='all').reset_index(drop=True)
@@ -131,58 +147,42 @@ def generate_visualization(query_result):
             plt.close()
             return base64.b64encode(buf.getvalue()).decode('utf-8')
             
+        else:
+            print("Dataframe has more than 2 columns, cannot visualize")
+            return None
+
     except Exception as e:
         print(f"Visualization error: {str(e)}")
         return None
 
-# async def get_authenticated_user():
-#     params = cl.user_session.get("query_params")
-#     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
-
-
-def get_auth_from_cookies():
-    """Extract authentication parameters from browser cookies"""
-    try:
-        # Get cookies from the current session
-        cookies = cl.user_session.get('cookies', {})
-
-        auth_data = {
-            'user_id': cookies.get('auth_user_id'),
-            'token': cookies.get('auth_token'),
-            'flask_base_url': cookies.get('flask_base_url'),
-            'username': cookies.get('username'),
-            'auth_timestamp': cookies.get('auth_timestamp')
-        }
-
-        # Validate that all required fields are present
-        required_fields = ['user_id', 'token', 'flask_base_url', 'username']
-        if not all(auth_data.get(field) for field in required_fields):
-            return None
-
-        return auth_data
-    except Exception as e:
-        print(f"Error reading cookies: {e}")
-        return None
+def run_sync(func, *args, **kwargs):
+    """Run a synchronous function in the event loop."""
+    loop = asyncio.get_event_loop()
+    return loop.run_in_executor(executor, lambda: func(*args, **kwargs))
 
 async def validate_auth_with_flask(auth_data):
     """Validate authentication with Flask backend"""
     try:
-        flask_base_url = auth_data['flask_base_url']
-        validation_url = f"{flask_base_url}api/validate-auth"
+        flask_base_url = os.getenv('FLASK_BASE_URL')  # Get from env
+        if not flask_base_url:
+            print("FLASK_BASE_URL not set")
+            return None
+
+        validation_url = f"{flask_base_url}/api/validate-auth"
         
         payload = {
             'user_id': auth_data['user_id'],
             'token': auth_data['token']
         }
         
-        response = requests.post(validation_url, json=payload, timeout=10)
-        
-        if response.status_code == 200:
-            user_data = response.json()
-            return user_data
-        else:
-            print(f"Auth validation failed: {response.status_code}")
-            return None
+        async with aiohttp.ClientSession() as session:
+            async with session.post(validation_url, json=payload, timeout=10) as response:
+                if response.status == 200:
+                    user_data = await response.json()
+                    return user_data
+                else:
+                    print(f"Auth validation failed: {response.status} - {await response.text()}")
+                    return None
             
     except Exception as e:
         print(f"Error validating auth: {e}")
@@ -232,8 +232,7 @@ async def start_chat():
                 }
             } catch (error) {
                 console.error('Error reading cookies:', error);
-            }
-        })();
+            }        })();
         </script>
         """
     )
@@ -251,7 +250,7 @@ async def load_user_data(user_id, token):
 
     llm_config = {
         "model": "gpt-4o-mini",
-        "api_key": os.environ["OPENAI_API_KEY"]
+        "api_key": os.getenv("OPENAI_API_KEY")
     }
     
     # chat_manager = ChatManager(
@@ -274,7 +273,29 @@ async def load_user_data(user_id, token):
     # cl.user_session.set("user_id", user_id)
     cl.user_session.set("session_data", session_data)
 
+def get_auth_from_cookies():
+    """Extract authentication parameters from browser cookies"""
+    try:
+        # Get cookies from the current session
+        cookies = cl.user_session.get('cookies', {})
 
+        auth_data = {
+            'user_id': cookies.get('auth_user_id'),
+            'token': cookies.get('auth_token'),
+            'flask_base_url': cookies.get('flask_base_url'),
+            'username': cookies.get('username'),
+            'auth_timestamp': cookies.get('auth_timestamp')
+        }
+
+        # Validate that all required fields are present
+        required_fields = ['user_id', 'token', 'flask_base_url', 'username']
+        if not all(auth_data.get(field) for field in required_fields):
+            return None
+
+        return auth_data
+    except Exception as e:
+        print(f"Error reading cookies: {e}")
+        return None
 
 @cl.on_message
 async def main(message: cl.Message):
@@ -315,30 +336,39 @@ async def main(message: cl.Message):
                 await cl.Message(content="Session not initialized").send()
                 return
                 
-            # Get additional context from session
+            # Get additional context from session            
             user_context = {
                 "user_id": cl.user_session.get("user_id"),
                 "schema_info": cl.user_session.get("session_data")['schema_description']
             }
 
             # Initiate the conversation
-            await cl.make_async(chat_manager.user_agent.initiate_chat)(
-                chat_manager.manager,
-                # message=message.content
-                message=f"{message.content} - User Context: {user_context}"
-            )
+            # await cl.make_async(chat_manager.user_agent.initiate_chat)(
+            #     chat_manager.manager,
+            #     # message=message.content
+            #     message=f"{message.content} - User Context: {user_context}"
+            # )
             
+            # Auto-generate visualization
+            # raw_result = await cl.make_async(chat_manager.user_agent.initiate_chat)(
+            #     chat_manager.manager,
+            #     # message=message.content
+            #     message=f"{message.content} - User Context: {user_context}"
+            # )
+            raw_result = await run_sync(chat_manager.user_agent.initiate_chat, chat_manager.manager, f"{message.content} - User Context: {user_context}")
+
             # Find and display the final result
             for msg in reversed(chat_manager.group_chat.messages):
                 if msg["name"] == "db_agent":
-                    # Send raw results first            await cl.Message(content=f"Result: {msg['content']}").send()
+                    # Send raw results first            
+                    await cl.Message(content=f"Result: {msg['content']}").send()
 
-                    # Auto-generate visualization
-                    viz = generate_visualization(msg['content'])
+                    # Auto-generate visualization                    
+                    viz = await run_sync(generate_visualization, msg['content'])
                     
                     if isinstance(viz, str) and viz.startswith("Single result"):
                         await cl.Message(content=viz).send()
-                    elif viz:  # It's a base64 image
+                    elif viz:  # It's a base64 image                        
                         await cl.Message(
                             content="",
                             elements=[cl.Image(name="chart", display="inline", content=viz)]
