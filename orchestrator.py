@@ -249,6 +249,8 @@ async def load_user_data(user_id, token):
     workspace_dir = f"workspace/user_{user_id}"
     os.makedirs(workspace_dir, exist_ok=True)
     
+    os.environ["AUTOGEN_USE_DOCKER"] = "False"
+
     chat_manager = ChatManager(
         db_path=session_data['warehouse_file_path'],  # From session
         llm_config=llm_config,
