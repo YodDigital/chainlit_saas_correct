@@ -212,31 +212,8 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-    await cl.Message(content="Requesting cookies...").send()
-    js_injection = cl.HTML(        content="""
-        <script>
-        (function() {
-            try {
-                const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
-                    const [key, value] = cookie.split('=').map(decodeURIComponent);
-                    acc[key] = value;
-                    return acc;
-                }, {});
-
-                const authDataString = "__COOKIES__" + JSON.stringify(cookies);
-
-                const messageInput = document.querySelector('input[type="text"], textarea');
-                if (messageInput) {
-                    messageInput.value = authDataString;
-                    messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            } catch (error) {
-                console.error('Error reading cookies:', error);
-            }        })();
-        </script>
-        """
-    )
-    await js_injection.send()
+     # Send the CookieReader component to the UI
+    await cl.Message(content="Reading cookies...", elements=[cl.CustomElement(name="CookieReader")]).send()
 
         
 async def load_user_data(user_id, token):
@@ -299,9 +276,9 @@ def get_auth_from_cookies():
 
 @cl.on_message
 async def main(message: cl.Message):
-    if message.content.startswith("__COOKIES__"):
+    if message.type == 'system_message':
         try:            
-            cookies = json.loads(message.content[len("__COOKIES__"):])
+            cookies = json.loads(message.content)
             cl.user_session.set("cookies", cookies)
             print("Received cookies:", cookies)
             # Now you can call get_auth_from_cookies()
@@ -355,7 +332,7 @@ async def main(message: cl.Message):
             #     # message=message.content
             #     message=f"{message.content} - User Context: {user_context}"
             # )
-            raw_result = await run_sync(chat_manager.user_agent.initiate_chat, chat_manager.manager, f"{message.content} - User Context: {user_context}")
+            await run_sync(chat_manager.user_agent.initiate_chat, chat_manager.manager, f"{message.content} - User Context: {user_context}")
 
             # Find and display the final result
             for msg in reversed(chat_manager.group_chat.messages):
