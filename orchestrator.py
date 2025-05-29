@@ -368,7 +368,7 @@ async def handle_authentication(cookie_input):
         await cl.Message(content="🔄 Validating authentication...", author="System").send()
         
         # Validate authentication with Flask backend
-        user_data = await validate_auth_with_flask(auth_data)
+        user_data = await load_user_data(auth_data['user_id'], auth_data['token'])
         
         if not user_data:
             await cl.Message(
@@ -379,10 +379,7 @@ async def handle_authentication(cookie_input):
         
         await cl.Message(content="🔄 Loading your data warehouse...", author="System").send()
         
-        # Load user data and initialize chat manager
-        if not await load_user_data(auth_data['user_id'], auth_data['token']):
-            return  # Error message already sent in load_user_data
-        
+                
         # Store authentication info in session
         cl.user_session.set("authenticated", True)
         cl.user_session.set("awaiting_auth", False)
