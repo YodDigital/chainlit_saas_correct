@@ -160,42 +160,14 @@ def run_sync(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
     return loop.run_in_executor(executor, lambda: func(*args, **kwargs))
 
-async def validate_auth_with_flask(auth_data):
-    """Validate authentication with Flask backend"""
-    try:
-        flask_base_url = os.getenv('FLASK_BASE_URL')  # Get from env
-        if not flask_base_url:
-            print("FLASK_BASE_URL not set")
-            return None
-
-        validation_url = f"{flask_base_url}/api/validate-auth"
-        
-        payload = {
-            'user_id': auth_data['user_id'],
-            'token': auth_data['token']
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(validation_url, json=payload, timeout=10) as response:
-                if response.status == 200:
-                    user_data = await response.json()
-                    return user_data
-                else:
-                    print(f"Auth validation failed: {response.status} - {await response.text()}")
-                    return None
-            
-    except Exception as e:
-        print(f"Error validating auth: {e}")
-        return None
-
 async def fetch_user_session(user_id, token):
     if not user_id or not token:
-        print("User ID or token is missing.")
+        await cl.Message(content="User ID or token is missing.").send()
         return None
 
     flask_base_url = os.getenv('FLASK_BASE_URL')
     if not flask_base_url:
-        print("FLASK_BASE_URL environment variable not set.")
+        await cl.Message(content="FLASK_BASE_URL environment variable not set.").send()
         return None
 
     try:
@@ -204,7 +176,7 @@ async def fetch_user_session(user_id, token):
                 if resp.status == 200:
                     return await resp.json()
                 else:
-                    print(f"Failed to fetch user session. Status: {resp.status}")
+                    await cl.Message(content=f"Failed to fetch user session. Status: {resp.status}").send()
                     return None
     except Exception as e:
         print(f"An error occurred: {e}")
