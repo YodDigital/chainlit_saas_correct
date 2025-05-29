@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs
 import aiohttp
 from dwh_agents.dwh_code_generator_agent import create_dwh_agent
@@ -80,7 +81,8 @@ import io
 import base64
 from typing import Optional
 import asyncio
-import aiohttp  # Import aiohttp
+import aiohttp
+
 
 def generate_visualization(query_result):
     """Auto-generate visualization based on query results."""
@@ -138,51 +140,12 @@ def generate_visualization(query_result):
 #     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
 
 
-@cl.on_window_message
-async def handle_url_params(message: dict):
-    """Handle messages from the frontend JavaScript"""
-    try:
-        if message.get("type") == "url_params":
-            url_params = message.get("params", {})
-
-            # Parameter Validation (Example)
-            user_id = url_params.get("user_id")
-            if user_id and not isinstance(user_id, str):
-                await cl.Message(
-                    content="❌ Invalid URL parameters: user_id must be a string",
-                    author="System",
-                ).send()
-                return
-
-            # Store in user session
-            cl.user_session.set("url_params", url_params)
-
-            # Log the parameters
-            print(f"URL parameters received: {url_params}")
-
-            # Optional: Send confirmation message to chat
-            await cl.Message(
-                content="✅ URL parameters loaded successfully",
-                author="System"
-            ).send()
-
-            # You can now access these params in other functions:
-            # params = cl.user_session.get("url_params")
-
-    except Exception as e:
-        print(f"Error handling URL parameters: {e}")
-        await cl.Message(
-            content="❌ Error processing URL parameters",
-            author="System"
-        ).send()
-
 def get_auth_from_cookies():
     """Extract authentication parameters from browser cookies"""
     try:
         # Get cookies from the current session
-        # Note: This depends on how Chainlit exposes cookies - you might need to use JavaScript
-        cookies = cl.context.session.get('cookies', {})
-        
+        cookies = cl.user_session.get('cookies', {})
+
         auth_data = {
             'user_id': cookies.get('auth_user_id'),
             'token': cookies.get('auth_token'),
@@ -190,12 +153,12 @@ def get_auth_from_cookies():
             'username': cookies.get('username'),
             'auth_timestamp': cookies.get('auth_timestamp')
         }
-        
+
         # Validate that all required fields are present
         required_fields = ['user_id', 'token', 'flask_base_url', 'username']
         if not all(auth_data.get(field) for field in required_fields):
             return None
-            
+
         return auth_data
     except Exception as e:
         print(f"Error reading cookies: {e}")
@@ -249,35 +212,33 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-    """Initialize chat session with authentication"""
-    
-    # Get authentication data from cookies
-    auth_data = get_auth_from_cookies()
-    
-    if not auth_data:
-        await cl.Message(
-            content="❌ Authentication failed. Please log in through the main application.",
-            author="System"
-        ).send()
-        return
-    
-    # Validate authentication with Flask backend
-    user_data = await validate_auth_with_flask(auth_data)
-    
-    if not user_data:
-        await cl.Message(
-            content="❌ Authentication validation failed. Please log in again.",
-            author="System"
-        ).send()
-        return
-    
-    await load_user_data(auth_data['user_id'], auth_data['token'])
-   # Store user data in session
-    cl.user_session.set("user_id", auth_data['user_id'])
-    cl.user_session.set("username", auth_data['username'])
-    cl.user_session.set("flask_base_url", auth_data['flask_base_url'])
-    cl.user_session.set("user_data", user_data)
-    
+    await cl.Message(content="Requesting cookies...", visible=False).send()
+    js_injection = cl.Html(        content="""
+        <script>
+        (function() {
+            try {
+                const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
+                    const [key, value] = cookie.split('=').map(decodeURIComponent);
+                    acc[key] = value;
+                    return acc;
+                }, {});
+
+                const authDataString = "__COOKIES__" + JSON.stringify(cookies);
+
+                const messageInput = document.querySelector('input[type="text"], textarea');
+                if (messageInput) {
+                    messageInput.value = authDataString;
+                    messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            } catch (error) {
+                console.error('Error reading cookies:', error);
+            }
+        })();
+        </script>
+        """
+    )
+    await js_injection.send()
+
         
 async def load_user_data(user_id, token):
 
@@ -317,40 +278,76 @@ async def load_user_data(user_id, token):
 
 @cl.on_message
 async def main(message: cl.Message):
-    chat_manager = cl.user_session.get("chat_manager")
-    if not chat_manager:
-        await cl.Message(content="Session not initialized").send()
-        return
-        
-    # Get additional context from session
-    user_context = {
-        "user_id": cl.user_session.get("user_id"),
-        "schema_info": cl.user_session.get("session_data")['schema_description']
-    }
+    if message.content.startswith("__COOKIES__"):
+        try:            
+            cookies = json.loads(message.content[len("__COOKIES__"):])
+            cl.user_session.set("cookies", cookies)
+            print("Received cookies:", cookies)
+            # Now you can call get_auth_from_cookies()
+            auth_data = get_auth_from_cookies()
 
-    # Initiate the conversation
-    await cl.make_async(chat_manager.user_agent.initiate_chat)(
-        chat_manager.manager,
-        # message=message.content
-        message=f"{message.content} - User Context: {user_context}"
-    )
-    
-    # Find and display the final result
-    for msg in reversed(chat_manager.group_chat.messages):
-        if msg["name"] == "db_agent":
-            # Send raw results first            await cl.Message(content=f"Result: {msg['content']}").send()
-
-            # Auto-generate visualization
-            viz = generate_visualization(msg['content'])
-            
-            if isinstance(viz, str) and viz.startswith("Single result"):
-                await cl.Message(content=viz).send()
-            elif viz:  # It's a base64 image
+            if not auth_data:
                 await cl.Message(
-                    content="",
-                    elements=[cl.Image(name="chart", display="inline", content=viz)]
+                    content="❌ Authentication failed. Please log in through the main application.",
+                    author="System"
                 ).send()
-            break
+                return
+            
+            # Validate authentication with Flask backend
+            user_data = await validate_auth_with_flask(auth_data)
+            
+            if not user_data:
+                await cl.Message(
+                    content="❌ Authentication validation failed. Please log in again.",
+                    author="System"
+                ).send()
+                return
+            
+            await load_user_data(auth_data['user_id'], auth_data['token'])
+            # Store user data in session
+            cl.user_session.set("user_id", auth_data['user_id'])
+            cl.user_session.set("username", auth_data['username'])
+            cl.user_session.set("flask_base_url", auth_data['flask_base_url'])
+            cl.user_session.set("user_data", user_data)
+
+            chat_manager = cl.user_session.get("chat_manager")
+            if not chat_manager:
+                await cl.Message(content="Session not initialized").send()
+                return
+                
+            # Get additional context from session
+            user_context = {
+                "user_id": cl.user_session.get("user_id"),
+                "schema_info": cl.user_session.get("session_data")['schema_description']
+            }
+
+            # Initiate the conversation
+            await cl.make_async(chat_manager.user_agent.initiate_chat)(
+                chat_manager.manager,
+                # message=message.content
+                message=f"{message.content} - User Context: {user_context}"
+            )
+            
+            # Find and display the final result
+            for msg in reversed(chat_manager.group_chat.messages):
+                if msg["name"] == "db_agent":
+                    # Send raw results first            await cl.Message(content=f"Result: {msg['content']}").send()
+
+                    # Auto-generate visualization
+                    viz = generate_visualization(msg['content'])
+                    
+                    if isinstance(viz, str) and viz.startswith("Single result"):
+                        await cl.Message(content=viz).send()
+                    elif viz:  # It's a base64 image
+                        await cl.Message(
+                            content="",
+                            elements=[cl.Image(name="chart", display="inline", content=viz)]
+                        ).send()
+                    break
+        except json.JSONDecodeError as e:
+                    print(f"Error decoding cookies: {e}")
+    else:        
+        await cl.Message(content=f"You said: {message.content}").send()
 
 
 # if __name__ == "__main__":
