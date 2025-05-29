@@ -213,8 +213,8 @@ async def fetch_user_session(user_id, token):
 @cl.on_chat_start
 async def start_chat():
     # Send the CookieReader component to the UI
-    await cl.send_message(content="Getting cookies",
-                           js_function="getCookiesAndSend")
+    await cl.Message(content="Getting cookies").send()
+    cl.run_js(function_name="getCookiesAndSend")
 
         
 async def load_user_data(user_id, token):
