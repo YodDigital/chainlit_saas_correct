@@ -374,17 +374,18 @@ async def handle_chat_message(user_message):
         # Get user context
         user_context = {
             "user_id": cl.user_session.get("user_id"),
-            "schema_info": cl.user_session.get("session_data", {}).get('schema_description', '')
+            "schema_info": cl.user_session.get("session_data", {}).get('schema_description', ''),
+            "warehouse_info": cl.user_session.get("session_data", {}).get('warehouse_file_path', '')
         }
         
         await cl.Message(content="🔄 Processing your query...", author="System").send()
         
         # Process the message with the chat manager
-        await run_sync(
-            chat_manager.user_agent.initiate_chat, 
-            chat_manager.manager, 
-            f"{user_message} - User Context: {user_context}"
-        )
+        await cl.make_async(chat_manager.user_agent.initiate_chat)(
+        chat_manager.manager,
+        # message=message.content
+        message=f"{user_message} - User Context: {user_context}"
+    )
 
         # Find and display the final result
         result_found = False
