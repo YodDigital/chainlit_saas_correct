@@ -13,10 +13,11 @@ services:
       - my-app-network
     volumes:
       - ./workspace:/workspace
-      - ./dwh_agents:/workspace/dwh_agents
-      - ./chat_agents:/workspace/chat_agents
-      - ./orchestrator.py:/workspace/orchestrator.py
-      - ./WA_Fn-UseC_-HR-Employee-Attrition.csv:/workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
+      - ./dwh_agents:/dwh_agents
+      - ./chat_agents:/chat_agents
+      - ./orchestrator.py:/orchestrator.py
+      - ./public:/public
+      - ./WA_Fn-UseC_-HR-Employee-Attrition.csv:/WA_Fn-UseC_-HR-Employee-Attrition.csv
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /workspace
     # command: python orchestrator.py
