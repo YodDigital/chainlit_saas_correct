@@ -80,8 +80,7 @@ import io
 import base64
 from typing import Optional
 import asyncio
-import aiohttp
-import json
+import aiohttp  # Import aiohttp
 
 def generate_visualization(query_result):
     """Auto-generate visualization based on query results."""
@@ -139,96 +138,81 @@ def generate_visualization(query_result):
 #     return params.get("user_id"), params.get("token"), params.get("flask_base_url"), params.get("username")
 
 
-# JavaScript code to read localStorage (this would be injected into the Chainlit page)
-LOCALSTORAGE_READER_JS = """
-function getChainlitAuthData() {
-    try {
-        const authData = {
-            user_id: localStorage.getItem('chainlit_user_id'),
-            auth_token: localStorage.getItem('chainlit_auth_token'),
-            flask_base_url: localStorage.getItem('chainlit_flask_base_url'),
-            username: localStorage.getItem('chainlit_username'),
-            auth_timestamp: localStorage.getItem('chainlit_auth_timestamp'),
-            warehouse_file_path: localStorage.getItem('chainlit_warehouse_file_path'),
-            schema_description: localStorage.getItem('chainlit_schema_description'),
-            auth_expiry: localStorage.getItem('chainlit_auth_expiry')
-        };
+@cl.on_window_message
+async def handle_url_params(message: dict):
+    """Handle messages from the frontend JavaScript"""
+    try:
+        if message.get("type") == "url_params":
+            url_params = message.get("params", {})
+
+            # Parameter Validation (Example)
+            user_id = url_params.get("user_id")
+            if user_id and not isinstance(user_id, str):
+                await cl.Message(
+                    content="❌ Invalid URL parameters: user_id must be a string",
+                    author="System",
+                ).send()
+                return
+
+            # Store in user session
+            cl.user_session.set("url_params", url_params)
+
+            # Log the parameters
+            print(f"URL parameters received: {url_params}")
+
+            # Optional: Send confirmation message to chat
+            await cl.Message(
+                content="✅ URL parameters loaded successfully",
+                author="System"
+            ).send()
+
+            # You can now access these params in other functions:
+            # params = cl.user_session.get("url_params")
+
+    except Exception as e:
+        print(f"Error handling URL parameters: {e}")
+        await cl.Message(
+            content="❌ Error processing URL parameters",
+            author="System"
+        ).send()
+
+def get_auth_from_cookies():
+    """Extract authentication parameters from browser cookies"""
+    try:
+        # Get cookies from the current session
+        # Note: This depends on how Chainlit exposes cookies - you might need to use JavaScript
+        cookies = cl.context.session.get('cookies', {})
         
-        // Check if essential fields exist
-        const requiredFields = ['user_id', 'auth_token', 'flask_base_url', 'username'];
-        const hasAllFields = requiredFields.every(field => authData[field]);
-        
-        if (!hasAllFields) {
-            console.log('Missing required auth fields in localStorage');
-            return null;
+        auth_data = {
+            'user_id': cookies.get('auth_user_id'),
+            'token': cookies.get('auth_token'),
+            'flask_base_url': cookies.get('flask_base_url'),
+            'username': cookies.get('username'),
+            'auth_timestamp': cookies.get('auth_timestamp')
         }
         
-        // Check expiry
-        if (authData.auth_expiry) {
-            const expiryTime = parseInt(authData.auth_expiry);
-            if (Date.now() > expiryTime) {
-                console.log('Auth data has expired');
-                // Clear expired data
-                clearChainlitAuthData();
-                return null;
-            }
-        }
-        
-        return authData;
-        
-    } catch (error) {
-        console.error('Error reading localStorage auth data:', error);
-        return null;
-    }
-}
-
-function clearChainlitAuthData() {
-    const keysToRemove = [
-        'chainlit_user_id',
-        'chainlit_auth_token',
-        'chainlit_flask_base_url',
-        'chainlit_username',
-        'chainlit_auth_timestamp',
-        'chainlit_warehouse_file_path',
-        'chainlit_schema_description',
-        'chainlit_auth_expiry'
-    ];
-    
-    keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-    });
-}
-
-// Make auth data available globally
-window.chainlitAuthData = getChainlitAuthData();
-"""
-
-def get_auth_from_frontend():
-    """
-    Get authentication data from the frontend localStorage
-    This is a placeholder - you'll need to implement the actual method
-    to get data from the frontend based on Chainlit's capabilities
-    """
-    # In a real implementation, you would need to:
-    # 1. Inject the JavaScript code above into the page
-    # 2. Execute it to get the auth data
-    # 3. Return the result
-    
-    # For now, this is a conceptual placeholder
-    # You might need to use Chainlit's JavaScript execution capabilities
-    # or have the frontend send this data via a message
-    
-    return None
-
+        # Validate that all required fields are present
+        required_fields = ['user_id', 'token', 'flask_base_url', 'username']
+        if not all(auth_data.get(field) for field in required_fields):
+            return None
+            
+        return auth_data
+    except Exception as e:
+        print(f"Error reading cookies: {e}")
+        return None
 
 async def validate_auth_with_flask(auth_data):
-    """Validate authentication with Flask backend using localStorage data"""
+    """Validate authentication with Flask backend"""
     try:
         flask_base_url = auth_data['flask_base_url']
-        validation_url = f"{flask_base_url}api/validate-localstorage-auth"
+        validation_url = f"{flask_base_url}api/validate-auth"
         
-        # Send all auth data for validation
-        response = requests.post(validation_url, json=auth_data, timeout=10)
+        payload = {
+            'user_id': auth_data['user_id'],
+            'token': auth_data['token']
+        }
+        
+        response = requests.post(validation_url, json=payload, timeout=10)
         
         if response.status_code == 200:
             user_data = response.json()
@@ -265,23 +249,14 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-    """Initialize chat session with localStorage authentication"""
+    """Initialize chat session with authentication"""
     
-    # First, try to get auth data from localStorage
-    # NOTE: You'll need to implement the actual localStorage reading method
-    # This might involve sending a message to the frontend or using Chainlit's JS capabilities
-    
-    await cl.Message(
-        content="🔄 Checking authentication...",
-        author="System"
-    ).send()
-    
-    # Try to get auth data (this is where you'd implement localStorage reading)
-    auth_data = await get_localStorage_auth_data()
+    # Get authentication data from cookies
+    auth_data = get_auth_from_cookies()
     
     if not auth_data:
         await cl.Message(
-            content="❌ Authentication failed. Please log in through the main application first.",
+            content="❌ Authentication failed. Please log in through the main application.",
             author="System"
         ).send()
         return
@@ -296,89 +271,14 @@ async def start_chat():
         ).send()
         return
     
-    # Store user data in session
+    await load_user_data(auth_data['user_id'], auth_data['token'])
+   # Store user data in session
     cl.user_session.set("user_id", auth_data['user_id'])
     cl.user_session.set("username", auth_data['username'])
     cl.user_session.set("flask_base_url", auth_data['flask_base_url'])
-    cl.user_session.set("warehouse_file_path", auth_data.get('warehouse_file_path'))
-    cl.user_session.set("schema_description", auth_data.get('schema_description'))
     cl.user_session.set("user_data", user_data)
     
-    # Send welcome message
-    welcome_msg = f"👋 Welcome back, {auth_data['username']}! \n\nI'm ready to help you analyze your data warehouse. What would you like to explore?"
-
-    await cl.Message(
-        content=welcome_msg,
-        author="Assistant"
-    ).send()
-    
-
-async def get_localStorage_auth_data():
-    """
-    Implementation that asks the frontend to auto-send localStorage data
-    via a specially formatted message
-    """
-    
-    # Send JavaScript that auto-executes and sends auth data
-    js_injection = cl.Html(
-        content="""
-        <script>
-        (function() {
-            try {
-                const authData = {
-                    user_id: localStorage.getItem('chainlit_user_id'),
-                    auth_token: localStorage.getItem('chainlit_auth_token'),
-                    flask_base_url: localStorage.getItem('chainlit_flask_base_url'),
-                    username: localStorage.getItem('chainlit_username'),
-                    auth_timestamp: localStorage.getItem('chainlit_auth_timestamp'),
-                    warehouse_file_path: localStorage.getItem('chainlit_warehouse_file_path'),
-                    schema_description: localStorage.getItem('chainlit_schema_description'),
-                    auth_expiry: localStorage.getItem('chainlit_auth_expiry')
-                };
-                
-                // Check if we have the required data
-                if (authData.user_id && authData.auth_token) {
-                    // Check expiry
-                    if (authData.auth_expiry && Date.now() > parseInt(authData.auth_expiry)) {
-                        console.log('Auth expired, clearing data');
-                        Object.keys(authData).forEach(key => {
-                            localStorage.removeItem('chainlit_' + key);
-                        });
-                        return;
-                    }
-                    
-                    // Send auth data as a hidden message
-                    const event = new CustomEvent('chainlit-auth-data', {
-                        detail: authData
-                    });
-                    window.dispatchEvent(event);
-                    
-                    // Alternative: Try to send via input if available
-                    const messageInput = document.querySelector('input[type="text"], textarea');
-                    if (messageInput) {
-                        // Temporarily store auth data for retrieval
-                        window._chainlitAuthData = authData;
-                    }
-                }
-            } catch (error) {
-                console.error('Error reading localStorage:', error);
-            }
-        })();
-        </script>
-        <div style="display: none;">Authentication check in progress...</div>
-        """,
-        display="inline"
-    )
-    
-    await js_injection.send()
-    
-    # Wait a moment for the JavaScript to execute
-    await asyncio.sleep(2)
-    
-    # Check if auth data was stored globally (this might not work in Chainlit's sandbox)
-    # This is a placeholder - actual implementation depends on Chainlit's JS capabilities
-    return None
-
+        
 async def load_user_data(user_id, token):
 
     # Fetch user session data from Flask backend
