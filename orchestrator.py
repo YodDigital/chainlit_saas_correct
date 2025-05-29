@@ -212,8 +212,9 @@ async def fetch_user_session(user_id, token):
 
 @cl.on_chat_start
 async def start_chat():
-     # Send the CookieReader component to the UI
-    await cl.Message(content="Reading cookies...", elements=[cl.CustomElement(name="CookieReader")]).send()
+    # Send the CookieReader component to the UI
+    await cl.send_message(content="Getting cookies",
+                           js_function="getCookiesAndSend")
 
         
 async def load_user_data(user_id, token):
@@ -276,9 +277,9 @@ def get_auth_from_cookies():
 
 @cl.on_message
 async def main(message: cl.Message):
-    if message.type == 'system_message':
+    if message.type == "system_message" and message.content.startswith("Cookies:"):
         try:            
-            cookies = json.loads(message.content)
+            cookies = message.content[8:]
             cl.user_session.set("cookies", cookies)
             print("Received cookies:", cookies)
             # Now you can call get_auth_from_cookies()
