@@ -213,7 +213,7 @@ async def fetch_user_session(user_id, token):
 @cl.on_chat_start
 async def start_chat():
     await cl.Message(content="Requesting cookies...").send()
-    js_injection = """
+    js_injection = cl.Html(        content="""
         <script>
         (function() {
             try {
@@ -235,7 +235,8 @@ async def start_chat():
             }        })();
         </script>
         """
-    await cl.Message(content=js_injection, content_type="html").send()
+    )
+    await js_injection.send()
 
         
 async def load_user_data(user_id, token):

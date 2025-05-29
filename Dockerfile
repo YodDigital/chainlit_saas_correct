@@ -13,9 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory
 WORKDIR /workspace
 
+RUN pip install --upgrade chainlit
+
 # Install Python packages
 RUN pip install --no-cache-dir \
-    chainlit \
     pyautogen \
     openai \
     "autogen[openai]" \
