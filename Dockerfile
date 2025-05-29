@@ -31,11 +31,11 @@ RUN pip install --no-cache-dir \
     matplotlib
 
 # Copy your script files
-COPY orchestrator.py /orchestrator.py
-COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /WA_Fn-UseC_-HR-Employee-Attrition.csv
-COPY dwh_agents /dwh_agents
-COPY chat_agents /chat_agents
-COPY public /public
+COPY orchestrator.py /workspace/orchestrator.py
+COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
+COPY dwh_agents /workspace/dwh_agents
+COPY chat_agents /workspace/chat_agents
+COPY public /workspace/public
 
 # # Install React dependencies if package.json exists
 # RUN if [ -f /public/package.json ]; then \
