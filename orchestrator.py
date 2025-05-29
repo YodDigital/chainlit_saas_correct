@@ -211,10 +211,21 @@ async def fetch_user_session(user_id, token):
         return None
 
 @cl.on_chat_start
-async def start_chat():
-    # Send the CookieReader component to the UI
-    await cl.Message(content="Getting cookies").send()
-    cl.run_js(function_name="getCookiesAndSend")
+async def start():
+    # Inject a script to read cookies and send them as a message
+    # THIS IS NOT RECOMMENDED - It's better to use a separate custom.js file
+    js_code = """
+    <script>
+    function sendCookies() {
+        const cookies = document.cookie;
+        window.chainlit.sendMessage(cookies);
+    }
+
+    // Call sendCookies after the Chainlit UI is ready (you might need a delay)
+    setTimeout(sendCookies, 1000);
+    </script>
+    """
+    await cl.Message(content=js_code, is_html=True).send()
 
         
 async def load_user_data(user_id, token):
@@ -279,7 +290,9 @@ def get_auth_from_cookies():
 async def main(message: cl.Message):
     if message.type == "system_message" and message.content.startswith("Cookies:"):
         try:            
-            cookies = message.content[8:]
+            cookies = message.content
+            print(f"Received cookies: {cookies}")
+            await cl.Message(content="Cookies received!").send()
             cl.user_session.set("cookies", cookies)
             print("Received cookies:", cookies)
             # Now you can call get_auth_from_cookies()
