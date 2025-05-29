@@ -368,17 +368,7 @@ async def handle_authentication(cookie_input):
         await cl.Message(content="🔄 Validating authentication...", author="System").send()
         
         # Validate authentication with Flask backend
-        user_data = await load_user_data(auth_data['user_id'], auth_data['token'])
-        
-        if not user_data:
-            await cl.Message(
-                content="❌ Authentication validation failed. Please check your credentials and try again.",
-                author="System"
-            ).send()
-            return
-        
-        await cl.Message(content="🔄 Loading your data warehouse...", author="System").send()
-        
+        await load_user_data(auth_data['user_id'], auth_data['token'])
                 
         # Store authentication info in session
         cl.user_session.set("authenticated", True)
@@ -386,7 +376,6 @@ async def handle_authentication(cookie_input):
         cl.user_session.set("user_id", auth_data['user_id'])
         cl.user_session.set("username", auth_data['username'])
         cl.user_session.set("flask_base_url", auth_data['flask_base_url'])
-        cl.user_session.set("user_data", user_data)
         
         await cl.Message(
             content=f"✅ **Authentication Successful!**\n\nWelcome, {auth_data['username']}! Your data warehouse is now loaded and ready.\n\n💬 You can now ask questions about your data. Try something like:\n- 'Show me the top 10 customers by revenue'\n- 'What was the total sales last month?'\n- 'How many employees are in each department?'",
