@@ -179,7 +179,7 @@ async def fetch_user_session(user_id, token):
                     await cl.Message(content=f"Failed to fetch user session. Status: {resp.status}").send()
                     return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        await cl.Message(content=f"An error occurred: {e}").send()
         return None
 def parse_cookie_string(cookie_string):
     """Parse cookie string into a dictionary"""
@@ -430,3 +430,7 @@ async def handle_chat_message(user_message):
 #     print("Database query result:", result)
 
 # #I want the number of women who are single and work as reseach scientists
+
+# {
+# "auth_token":"1-YSHc8t4h1K8IS_nOsRyMMg",  "auth_user_id":"1", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy", "auth_timestamp":"1748546485"
+# }
