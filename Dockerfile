@@ -35,14 +35,14 @@ COPY orchestrator.py /workspace/orchestrator.py
 COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
 COPY dwh_agents /workspace/dwh_agents
 COPY chat_agents /workspace/chat_agents
-COPY public /workspace/public
+COPY public /public
 
-# # Install React dependencies if package.json exists
-# RUN if [ -f /workspace/public/package.json ]; then \
-#         cd /workspace/public && \
-#         npm install @chainlit/react-client recoil && \
-#         npm run build; \
-#     fi
+# Install React dependencies if package.json exists
+RUN if [ -f /public/package.json ]; then \
+        cd /public && \
+        npm install @chainlit/react-client recoil && \
+        npm run build; \
+    fi
 
 # Expose Chainlit port
 EXPOSE 4200
