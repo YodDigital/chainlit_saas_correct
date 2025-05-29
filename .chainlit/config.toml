@@ -1,5 +1,3 @@
-# .chainlit/config.toml
-
 [ui]
 custom_js = "/public/custom.js"
 

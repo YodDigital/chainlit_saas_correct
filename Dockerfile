@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory
 WORKDIR /workspace
 
-RUN pip install --upgrade chainlit
+ COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Python packages
 RUN pip install --no-cache-dir \

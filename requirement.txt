@@ -1,0 +1,3 @@
+   chainlit==1.1.404 # Or whatever version you are using
+   
+
