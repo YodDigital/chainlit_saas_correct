@@ -251,16 +251,19 @@ async def load_user_data(user_id, token):
     
     os.environ["AUTOGEN_USE_DOCKER"] = "False"
 
+    # cl.user_session.set("user_id", user_id)
+    cl.user_session.set("session_data", session_data)
+
     chat_manager = ChatManager(
-        db_path=session_data['warehouse_file_path'],  # From session
+        db_path=cl.user_session.get("session_data", {}).get('schema_description', ''),  # From session
         llm_config=llm_config,
         work_dir=workspace_dir,  # User-specific workspace
-        schema_path=session_data['schema_description']  # From session
+        schema_path=cl.user_session.get("session_data", {}).get('warehouse_file_path', '')  # From session
     )
     
     cl.user_session.set("chat_manager", chat_manager)
-    # cl.user_session.set("user_id", user_id)
-    cl.user_session.set("session_data", session_data)
+    # # cl.user_session.set("user_id", user_id)
+    # cl.user_session.set("session_data", session_data)
 
 @cl.on_chat_start
 async def start():
@@ -435,5 +438,5 @@ async def handle_chat_message(user_message):
 # #I want the number of women who are single and work as reseach scientists
 
 # {
-# "auth_token":"1-HeWrBUjuerjoSfGwq1h26w",  "auth_user_id":"1", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy", "auth_timestamp":"1748548619"
+# "auth_token":"3-nMiAUguUmzZKhaoytPbboQ",  "auth_user_id":"3", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_08", "auth_timestamp":"1748555269"
 # }
