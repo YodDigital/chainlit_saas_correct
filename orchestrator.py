@@ -246,6 +246,7 @@ async def load_schema_from_url(schema_url, local_path):
 
 async def download_database(db_url, local_path):
     """Download database file from URL to local path"""
+    db_url = db_url.rstrip("'%7D")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(db_url) as response:
