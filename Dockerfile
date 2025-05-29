@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
-WORKDIR /workspace
+WORKDIR /app
 
 RUN pip install --upgrade chainlit
 
@@ -31,10 +31,10 @@ RUN pip install --no-cache-dir \
     matplotlib
 
 # Copy your script files
-COPY orchestrator.py /workspace/orchestrator.py
-COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /workspace/WA_Fn-UseC_-HR-Employee-Attrition.csv
-COPY dwh_agents /workspace/dwh_agents
-COPY chat_agents /workspace/chat_agents
+COPY orchestrator.py /orchestrator.py
+COPY WA_Fn-UseC_-HR-Employee-Attrition.csv /WA_Fn-UseC_-HR-Employee-Attrition.csv
+COPY dwh_agents /dwh_agents
+COPY chat_agents /chat_agents
 COPY public /public
 
 # # Install React dependencies if package.json exists
