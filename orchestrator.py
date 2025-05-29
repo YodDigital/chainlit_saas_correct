@@ -172,7 +172,7 @@ async def fetch_user_session(user_id, token):
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{flask_base_url}/api/user_session/{user_id}", headers={"Authorization": f"Bearer {token}"}) as resp:
+            async with session.get(f"{flask_base_url}/api/user_session/{user_id}") as resp:
                 if resp.status == 200:
                     return await resp.json()
                 else:
