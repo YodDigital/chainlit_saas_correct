@@ -244,46 +244,6 @@ async def load_schema_from_url(schema_url, local_path):
         print(f"Error downloading schema: {e}")
         return None
 
-async def download_database(db_url, local_path):
-    """Download database file from URL to local path"""
-    db_url = db_url.rstrip("'%7D")
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(db_url) as response:
-                print(f"Response status: {response.status}")
-                print(f"Content-Type: {response.headers.get('content-type')}")
-                
-                if response.status == 200:
-                    # Ensure directory exists
-                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                    
-                    # Download binary content
-                    content = await response.read()
-                    print(f"Downloaded {len(content)} bytes")
-                    
-                    # Verify it's a database
-                    if content.startswith(b'SQLite format 3'):
-                        print("✅ Valid SQLite database detected")
-                    else:
-                        print("⚠️ Warning: May not be a SQLite file")
-                        print(f"First 20 bytes: {content[:20]}")
-                    
-                    # Save to local file
-                    async with aiofiles.open(local_path, 'wb') as f:
-                        await f.write(content)
-                    
-                    print(f"File saved to: {local_path}")
-                    return local_path
-                else:
-                    print(f"Failed to download database: {response.status}")
-                    error_text = await response.text()
-                    print(f"Error response: {error_text[:200]}")
-                    return None
-    except Exception as e:
-        print(f"Error downloading database: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
 async def load_user_data(user_id, token):
 
     # Fetch user session data from Flask backend
@@ -315,15 +275,8 @@ async def load_user_data(user_id, token):
     local_schema_path = os.path.join(workspace_dir, 'schema.txt')
     schema_path = await load_schema_from_url(cl.user_session.get("session_data", {}).get('schema_description', ''), local_schema_path)
 
-    local_db_path = os.path.join(workspace_dir, f'database_{user_id}.db')
-    db_path = await download_database(cl.user_session.get("session_data", {}).get('schema_description', ''), local_db_path)
-    
-    if not db_path:
-        await cl.Message(content="Failed to download database file").send()
-        return
-
     chat_manager = ChatManager(
-        db_path=db_path,  # From session
+        db_path=cl.user_session.get("session_data", {}).get('schema_description', '').rstrip("'%7D"),  # From session
         llm_config=llm_config,
         work_dir=workspace_dir,  # User-specific workspace
         schema_path=schema_path  # From session
