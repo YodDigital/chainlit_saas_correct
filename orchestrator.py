@@ -276,7 +276,7 @@ async def load_user_data(user_id, token):
     schema_path = await load_schema_from_url(cl.user_session.get("session_data", {}).get('schema_description', ''), local_schema_path)
 
     chat_manager = ChatManager(
-        db_path=cl.user_session.get("session_data", {}).get('schema_description', '').rstrip("'%7D"),  # From session
+        db_path=cl.user_session.get("session_data", {}).get('warehouse_file_path', '').rstrip("'%7D"),  # From session
         llm_config=llm_config,
         work_dir=workspace_dir,  # User-specific workspace
         schema_path=schema_path  # From session
@@ -459,5 +459,5 @@ async def handle_chat_message(user_message):
 # #I want the number of women who are single and work as reseach scientists
 
 # {
-# "auth_token":"4-dAArxTumIuljTKqMcctLjg",  "auth_user_id":"4", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_02", "auth_timestamp":"1748563687"
+# "auth_token":"4-vVa3gmlLkoedHHw4rP4Y9A",  "auth_user_id":"4", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_02", "auth_timestamp":"1748570772"
 # }
