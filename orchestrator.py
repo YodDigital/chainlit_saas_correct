@@ -250,25 +250,40 @@ async def download_database(db_url, local_path):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(db_url) as response:
+                print(f"Response status: {response.status}")
+                print(f"Content-Type: {response.headers.get('content-type')}")
+                
                 if response.status == 200:
                     # Ensure directory exists
                     os.makedirs(os.path.dirname(local_path), exist_ok=True)
                     
                     # Download binary content
                     content = await response.read()
+                    print(f"Downloaded {len(content)} bytes")
                     
-                    # Save to local file (binary mode for .db files)
+                    # Verify it's a database
+                    if content.startswith(b'SQLite format 3'):
+                        print("✅ Valid SQLite database detected")
+                    else:
+                        print("⚠️ Warning: May not be a SQLite file")
+                        print(f"First 20 bytes: {content[:20]}")
+                    
+                    # Save to local file
                     async with aiofiles.open(local_path, 'wb') as f:
                         await f.write(content)
                     
+                    print(f"File saved to: {local_path}")
                     return local_path
                 else:
                     print(f"Failed to download database: {response.status}")
+                    error_text = await response.text()
+                    print(f"Error response: {error_text[:200]}")
                     return None
     except Exception as e:
         print(f"Error downloading database: {e}")
+        import traceback
+        traceback.print_exc()
         return None
-
 async def load_user_data(user_id, token):
 
     # Fetch user session data from Flask backend
@@ -491,5 +506,5 @@ async def handle_chat_message(user_message):
 # #I want the number of women who are single and work as reseach scientists
 
 # {
-# "auth_token":"3-tmAdo8xG9cSWlMqwoyjYZA",  "auth_user_id":"3", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_08", "auth_timestamp":"1748561293"
+# "auth_token":"4-dAArxTumIuljTKqMcctLjg",  "auth_user_id":"4", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_02", "auth_timestamp":"1748563687"
 # }
