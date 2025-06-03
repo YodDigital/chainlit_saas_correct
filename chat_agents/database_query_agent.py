@@ -43,7 +43,7 @@ def create_database_query_agent(db_path, llm_config):
     1. When you receive 'PROCEED_TO_DATABASE: [SQL_QUERY]':
        - First VALIDATE the SQL syntax and semantics
        - If valid, execute it and return the actual query results, not a placeholder
-       - If invalid, return: 'REQUEST_REVISION: [specific_problems]'
+       - If invalid, return: 'ROUTE_TO_FORMULATION_AGENT: [specific_problems]' 
     
     2. For invalid queries, specify exactly what's wrong:
        - Syntax errors

@@ -457,7 +457,8 @@ async def handle_chat_message(user_message):
 #     print("Database query result:", result)
 
 # #I want the number of women who are single and work as reseach scientists
+#i want the highest monthly income per jobrole for employees having worked for over 10 years in the company
 
 # {
-# "auth_token":"4-vVa3gmlLkoedHHw4rP4Y9A",  "auth_user_id":"4", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_02", "auth_timestamp":"1748570772"
+# "auth_token":"2-JW1OYRDL2RRoYxRABs2vpA",  "auth_user_id":"2", "flask_base_url":"https://skaibknd-production.up.railway.app/", "username":"raphy_02", "auth_timestamp":"1748987452"
 # }
