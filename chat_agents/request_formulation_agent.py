@@ -32,10 +32,10 @@ def create_formulation_agent(llm_config, work_dir, schema_path):
 ## IMPORTANT: If the schema preview above appears empty, please inform the user that there was an issue loading the schema and they should check the schema_description.txt file in the work_dir.
 
 ## MODE 1: Initial Request Processing
-When receiving a new business request, follow standard formulation process.
+When receiving a new business request, 'PROCEED_TO_FORMULATION: [cleaned_request]', follow standard formulation process.
 
 ## MODE 2: Revision Processing
-When receiving 'ROUTE_TO_FORMULATION_AGENT:' from database agent:
+When receiving 'ROUTE_TO_FORMULATION_AGENT:' from DataBaseQueryAgent:
 
 1. Parse the validation errors from the database agent
 2. Extract the original user request

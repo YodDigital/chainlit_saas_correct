@@ -44,6 +44,12 @@ def create_database_query_agent(db_path, llm_config):
        - First VALIDATE the SQL syntax and semantics
        - If valid, execute it and return the actual query results, not a placeholder
        - If invalid, return: 'ROUTE_TO_FORMULATION_AGENT: [specific_problems]' 
+       Example error response:
+            ROUTE_TO_FORMULATION_AGENT:
+            The query failed because:
+            - Table 'sales_region' does not exist. Available tables: dim_geography, fact_sales
+            - Column 'region_name' not found. Available columns in dim_geography: geography_key, region_id, region_desc
+            Suggested fix: Use 'fact_sales' joined with 'dim_geography' on geography_key
     
     2. For invalid queries, specify exactly what's wrong:
        - Syntax errors
