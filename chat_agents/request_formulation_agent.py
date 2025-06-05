@@ -9,8 +9,8 @@ def create_formulation_agent(llm_config, work_dir, schema_path):
     # schema_path = "/workspace/schema_description.txt"
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
-            full_schema_content = json.load(f)
-            # full_schema_content = f.read()
+            raw_content = f.read()
+            full_schema_content = json.load(raw_content) if raw_content.strip().startswith('{') else raw_content
         
         # Check if schema is actually loaded
         if not full_schema_content or len(full_schema_content.strip()) == 0:
@@ -19,7 +19,7 @@ def create_formulation_agent(llm_config, work_dir, schema_path):
         print(f"Successfully loaded schema: {len(full_schema_content)} characters")
         
         # Also create a shorter version for the prompt - but show enough to be useful
-        schema_preview = full_schema_content[:2000]  # First 2000 chars for prompt
+        schema_preview = json.dumps(full_schema_content, indent=2)[:2000]  # First 2000 chars for prompt
         schema_reference = f"```schema\n{schema_preview}\n```"
     except Exception as e:
         print(f"Error loading schema: {str(e)}")
