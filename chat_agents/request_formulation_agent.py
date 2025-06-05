@@ -1,3 +1,4 @@
+import json
 from autogen import AssistantAgent
 from .chainlit_agents import ChainlitAssistantAgent
 import os
@@ -8,7 +9,8 @@ def create_formulation_agent(llm_config, work_dir, schema_path):
     # schema_path = "/workspace/schema_description.txt"
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
-            full_schema_content = f.read()
+            full_schema_content = json.load(f)
+            # full_schema_content = f.read()
         
         # Check if schema is actually loaded
         if not full_schema_content or len(full_schema_content.strip()) == 0:
