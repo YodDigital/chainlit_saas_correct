@@ -106,7 +106,7 @@ def create_database_query_agent(db_url, llm_config):
 
      # Pass schema to execute_query via closure
     def execute_with_schema(query):
-        return execute_query(query, real_schema)
+        return execute_query(query, real_schema, db_path)
     
     # Create the base agent
     base_agent = ChainlitAssistantAgent(
