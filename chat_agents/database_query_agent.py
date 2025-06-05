@@ -5,45 +5,82 @@ import re
 import urllib.request
 import tempfile
 
+def load_actual_schema(db_path):
+    """Dynamically loads the REAL schema from the database"""
+    conn = sqlite3.connect(db_path)
+    schema = {"tables": {}}
+    
+    # Get all tables
+    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    
+    for table in tables:
+        # Get all columns for each table
+        cols = conn.execute(f"PRAGMA table_info({table[0]})").fetchall()
+        schema["tables"][table[0]] = [col[1] for col in cols]  # col[1] = column name
+    
+    conn.close()
+    return schema
+
+def execute_query(query, schema, db_path):
+    try:
+            # Extract all referenced tables/columns
+        tables_in_query = set(re.findall(r'\bFROM\s+(\w+)|\bJOIN\s+(\w+)', query, re.IGNORECASE))
+        tables_in_query = {t for pair in tables_in_query for t in pair if t}
+        
+        # Validate tables
+        for table in tables_in_query:
+            if table not in schema["tables"]:
+                return f"ERROR: Table '{table}' doesn't exist. Available tables: {list(schema['tables'].keys())}"
+        
+        # Validate columns (simplified check)
+        columns_in_query = set(re.findall(r'\bSELECT\s+(.*?)\bFROM|\bWHERE\s+(.*?)\b(?:AND|OR|$)', query, re.IGNORECASE))
+        columns_in_query = {c.strip() for pair in columns_in_query for c in pair if c and '.' not in c}
+        connection = sqlite3.connect(db_path)
+        cursor = connection.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        # Get column names from cursor description
+        if cursor.description:
+            column_names = [col[0] for col in cursor.description]
+        else:
+            column_names = []
+            
+        connection.close()
+        
+        # Format the results in a readable way
+        if not results:
+            return "Query executed successfully. No results returned."
+        
+        # Build a formatted table for results
+        formatted_results = []
+        formatted_results.append("| " + " | ".join(column_names) + " |")
+        formatted_results.append("| " + " | ".join(["---" for _ in column_names]) + " |")
+        
+        for row in results:
+            formatted_results.append("| " + " | ".join([str(item) for item in row]) + " |")
+            
+        return "\n".join(formatted_results)
+        
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
 def create_database_query_agent(db_url, llm_config):
     # Create a function that will actually execute database queries
     # Download DB to a temporary file
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_file:
         urllib.request.urlretrieve(db_url, tmp_file.name)
         db_path = tmp_file.name  # Now use this local path
-    def execute_query(query):
-        try:
-            connection = sqlite3.connect(db_path)
-            cursor = connection.cursor()
-            cursor.execute(query)
-            results = cursor.fetchall()
-            
-            # Get column names from cursor description
-            if cursor.description:
-                column_names = [col[0] for col in cursor.description]
-            else:
-                column_names = []
-                
-            connection.close()
-            
-            # Format the results in a readable way
-            if not results:
-                return "Query executed successfully. No results returned."
-            
-            # Build a formatted table for results
-            formatted_results = []
-            formatted_results.append("| " + " | ".join(column_names) + " |")
-            formatted_results.append("| " + " | ".join(["---" for _ in column_names]) + " |")
-            
-            for row in results:
-                formatted_results.append("| " + " | ".join([str(item) for item in row]) + " |")
-                
-            return "\n".join(formatted_results)
-            
-        except Exception as e:
-            return f"ERROR: {str(e)}"
     
-    prompt = """You are a database query agent with these responsibilities:
+    # Load ACTUAL schema
+    real_schema = load_actual_schema(db_path)
+    
+    prompt = f"""
+    ## STRICT SCHEMA RULES
+    ACTUAL TABLES: {list(real_schema['tables'].keys())}
+    NEVER suggest tables/columns not listed here!
+
+    You are a database query agent with these responsibilities:
     
     1. When you receive 'PROCEED_TO_DATABASE: [SQL_QUERY]':
        - First VALIDATE the SQL syntax and semantics
@@ -66,6 +103,10 @@ def create_database_query_agent(db_url, llm_config):
     
     IMPORTANT: When a query is valid, DO NOT just respond with "RESULT: [query_results]". Instead, actually execute the query and show the real results from the database.
     """
+
+     # Pass schema to execute_query via closure
+    def execute_with_schema(query):
+        return execute_query(query, real_schema)
     
     # Create the base agent
     base_agent = ChainlitAssistantAgent(
@@ -97,7 +138,7 @@ def create_database_query_agent(db_url, llm_config):
                     sql_query = re.sub(r'```sql|```', '', sql_query).strip()
                     
                     # Execute the query
-                    query_result = execute_query(sql_query)
+                    query_result = execute_with_schema(sql_query)
                     
                     # Format the response with the actual results
                     result_response = f"""I've executed your SQL query:
