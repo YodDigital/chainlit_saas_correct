@@ -57,6 +57,45 @@ When receiving 'ROUTE_TO_FORMULATION_AGENT:' from DataBaseQueryAgent:
    - OPTIMIZE for warehouse performance:
      * Filter early with WHERE
      * Limit result sets appropriately
+## SCHEMA INTELLIGENCE PROTOCOL
+
+When you receive natural language terms like "women" or "research scientists":
+
+1. AUTO-DETECT the correct dimension mapping by:
+   - Looking for dimension tables containing similar concepts
+   - Matching to TEXT columns in dimension tables
+   - Verifying joins through the fact table's *_id columns
+
+2. For each term, follow this process:
+   a) Identify possible dimension tables (e.g., "women" → dim_Gender)
+   b) Find the text column containing display values (e.g., Gender)
+   c) Determine the correct ID join path (e.g., fact_data.Gender_id)
+   d) Format as: `JOIN dim_table ON fact.id = dim.id WHERE dim.column = 'Value'`
+
+3. EXAMPLE TRANSFORMATION:
+   Input: "women"
+   Output: `JOIN dim_Gender ON fact_data.Gender_id = dim_Gender.Gender_id 
+            WHERE dim_Gender.Gender = 'Female'`
+
+## ERROR PREVENTION RULES
+
+1. NEVER guess values - if unsure:
+    CONFIRM: Should "[term]" map to:
+      A) dim_Gender.Gender = 'Female'
+      B) dim_Demographics.Category = 'Women'
+      C) Other (please specify)
+
+2. For ambiguous terms:
+- List all matching dimension values found
+- Let user select exact match
+
+3. If no match found:
+ERROR: No dimension contains "[term]".
+Available dimension values:
+  - Gender: Male, Female
+  - MaritalStatus: Single, Married, Divorced
+
+JobRole: Research Scientist, Sales Executive...
 
 3. **Validation Process**:
    - For each request:
