@@ -14,7 +14,7 @@ class ChatManager:
         # Initialize agents with clear system messages
         self.user_agent = create_user_agent()
         self.analysis_agent = create_analysis_agent(llm_config, work_dir)
-        self.formulation_agent = create_formulation_agent(llm_config, work_dir, schema_path)
+        self.formulation_agent = create_formulation_agent(llm_config, work_dir, db_path, schema_path)
         self.db_agent = create_database_query_agent(db_path, llm_config)
 
         # Set up GroupChat (automatic mode)

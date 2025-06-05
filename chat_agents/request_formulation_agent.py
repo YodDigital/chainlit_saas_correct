@@ -2,27 +2,46 @@ from autogen import AssistantAgent
 from .chainlit_agents import ChainlitAssistantAgent
 import os
 from pathlib import Path
+import sqlite3
 
-def create_formulation_agent(llm_config, work_dir, schema_path):
+def create_formulation_agent(llm_config, work_dir, db_path, schema_path):
     # Load schema content - read the full file for validation purposes
     # schema_path = "/workspace/schema_description.txt"
-    try:
-        with open(schema_path, 'r', encoding='utf-8') as f:
-            full_schema_content = f.read()
+    def load_actual_schema(db_path):
+    # """Dynamically loads the REAL schema from the database"""
+      conn = sqlite3.connect(db_path)
+      schema = {"tables": {}}
+      
+      # Get all tables
+      tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+      
+      for table in tables:
+          # Get all columns for each table
+          cols = conn.execute(f"PRAGMA table_info({table[0]})").fetchall()
+          schema["tables"][table[0]] = [col[1] for col in cols]  # col[1] = column name
+      
+      conn.close()
+      return schema
+
+    # try:
+    #     with open(schema_path, 'r', encoding='utf-8') as f:
+    #         full_schema_content = f.read()
         
-        # Check if schema is actually loaded
-        if not full_schema_content or len(full_schema_content.strip()) == 0:
-            raise ValueError(f"Schema file at {schema_path} exists but is empty.")
+    #     # Check if schema is actually loaded
+    #     if not full_schema_content or len(full_schema_content.strip()) == 0:
+    #         raise ValueError(f"Schema file at {schema_path} exists but is empty.")
             
-        print(f"Successfully loaded schema: {len(full_schema_content)} characters")
+    #     print(f"Successfully loaded schema: {len(full_schema_content)} characters")
         
-        # Also create a shorter version for the prompt - but show enough to be useful
-        schema_preview = full_schema_content[:2000]  # First 2000 chars for prompt
-        schema_reference = f"```schema\n{schema_preview}\n```"
-    except Exception as e:
-        print(f"Error loading schema: {str(e)}")
-        schema_reference = f"SCHEMA LOAD ERROR: {str(e)}"
-        full_schema_content = ""
+    #     # Also create a shorter version for the prompt - but show enough to be useful
+    #     schema_preview = full_schema_content[:2000]  # First 2000 chars for prompt
+    #     schema_reference = f"```schema\n{schema_preview}\n```"
+    # except Exception as e:
+    #     print(f"Error loading schema: {str(e)}")
+    #     schema_reference = f"SCHEMA LOAD ERROR: {str(e)}"
+    #     full_schema_content = ""
+
+    schema_reference = load_actual_schema(db_path)
 
     prompt = f"""You are a Data Warehouse SQL Formulation Expert. Your task is to generate precise, optimized SQL queries for our data warehouse environment.
  
@@ -170,26 +189,26 @@ When processing database agent feedback:
         llm_config=llm_config,
     )
     
-    # Store the full schema in the agent's metadata for self-validation
-    base_agent.metadata = {"full_schema": full_schema_content}
+    # # Store the full schema in the agent's metadata for self-validation
+    # base_agent.metadata = {"full_schema": full_schema_content}
     
-    # Add a schema accessor method to ensure schema is available
-    def get_full_schema(self):
-        """Method to access the full schema content"""
-        if hasattr(self, 'metadata') and self.metadata and 'full_schema' in self.metadata:
-            return self.metadata['full_schema']
-        return None
+    # # Add a schema accessor method to ensure schema is available
+    # def get_full_schema(self):
+    #     """Method to access the full schema content"""
+    #     if hasattr(self, 'metadata') and self.metadata and 'full_schema' in self.metadata:
+    #         return self.metadata['full_schema']
+    #     return None
     
-    # Attach the method to the agent
-    base_agent.get_full_schema = get_full_schema.__get__(base_agent)
+    # # Attach the method to the agent
+    # base_agent.get_full_schema = get_full_schema.__get__(base_agent)
     
-    # Create a wrapper method to handle incoming messages with self-validation
+    # # Create a wrapper method to handle incoming messages with self-validation
     original_generate_reply = base_agent.generate_reply
     
     def generate_reply_with_validation(self, messages=None, sender=None, **kwargs):
         # First, ensure we have access to the schema
-        schema_content = self.get_full_schema()
-        if not schema_content or len(schema_content.strip()) == 0:
+        # schema_content = self.get_full_schema()
+        if not schema_reference or len(schema_reference.strip()) == 0:
             return "ERROR: Schema appears to be empty. Cannot validate SQL without schema access."
         
         # First get the normal response using the original method
@@ -200,9 +219,9 @@ When processing database agent feedback:
             # Prepare a validation message
             validation_msg = f"""Please validate the SQL query you've just created against the FULL schema:
 
-FULL SCHEMA (length: {len(schema_content)} characters):
+FULL SCHEMA (length: {len(schema_reference)} characters):
 ```
-{schema_content}
+{schema_reference}
 ```
 
 YOUR PREVIOUS SQL RESPONSE:
