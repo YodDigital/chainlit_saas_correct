@@ -92,7 +92,7 @@ def create_database_query_agent(db_path, llm_config):
                     sql_query = re.sub(r'```sql|```', '', sql_query).strip()
                     
                     # Execute the query
-                    query_result = execute_query(sql_query)
+                    query_result = query_database(sql_query, self.metadata['db_path'])
                     
                     # Format the response with the actual results
                     result_response = f"""I've executed your SQL query:
