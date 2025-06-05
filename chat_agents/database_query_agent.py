@@ -2,10 +2,15 @@ import sqlite3
 from autogen import AssistantAgent
 from .chainlit_agents import ChainlitAssistantAgent
 import re
+import urllib.request
+import tempfile
 
-
-def create_database_query_agent(db_path, llm_config):
+def create_database_query_agent(db_url, llm_config):
     # Create a function that will actually execute database queries
+    # Download DB to a temporary file
+    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_file:
+        urllib.request.urlretrieve(db_url, tmp_file.name)
+        db_path = tmp_file.name  # Now use this local path
     def execute_query(query):
         try:
             connection = sqlite3.connect(db_path)
@@ -92,7 +97,7 @@ def create_database_query_agent(db_path, llm_config):
                     sql_query = re.sub(r'```sql|```', '', sql_query).strip()
                     
                     # Execute the query
-                    query_result = query_database(sql_query, db_path)
+                    query_result = execute_query(sql_query)
                     
                     # Format the response with the actual results
                     result_response = f"""I've executed your SQL query:
