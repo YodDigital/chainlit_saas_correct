@@ -38,7 +38,8 @@ def execute_query(query, schema, db_path):
                 return f"ERROR: Table '{table}' doesn't exist. Available tables: {list(schema['tables'].keys())}"
 
         # Extract columns from SELECT and WHERE, ignoring aliases and functions
-        sql_keywords = {'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'GROUP', 'BY', 'ORDER', 'LIMIT', 'HAVING', 'DISTINCT'}
+        sql_keywords = {'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'GROUP', 'BY', 'ORDER', 'LIMIT', 'HAVING', 'DISTINCT', '=','<', '>', '<=', '>=', '!=', 'IS', 'NULL', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'EXISTS', 'UNION', 'INTERSECT', 'EXCEPT', 'ALL', 'ANY', 'SOME', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'EXTRACT', 'WITH', 'CROSS', 'NATURAL', 'LEFT', 'RIGHT', 'FULL', 'OUTER', 'INNER'}
+        sql_keywords = {kw.upper() for kw in sql_keywords}
 
         def extract_column_names(block):
             block = block.strip()
@@ -103,32 +104,35 @@ def create_database_query_agent(db_url, llm_config):
     real_schema = load_actual_schema(db_path)
 
     prompt = f"""
-    ## STRICT SCHEMA RULES
-    ACTUAL TABLES: {list(real_schema['tables'].keys())}
-    NEVER suggest tables/columns not listed here!
+You are the Database Query Agent.
 
-    You are a database query agent with these responsibilities:
+Your only task is to execute SQL queries on the database.
 
-    1. When you receive 'PROCEED_TO_DATABASE: [SQL_QUERY]':
-       - First VALIDATE the SQL syntax and semantics
-       - If valid, execute it and return the actual query results, not a placeholder
-       - If invalid, return: 'ROUTE_TO_FORMULATION_AGENT: [specific_problems]'
-       Example error response:
-            ROUTE_TO_FORMULATION_AGENT:
-            The query failed because:
-            - Table 'sales_region' does not exist. Available tables: dim_geography, fact_sales
-            - Column 'region_name' not found. Available columns in dim_geography: geography_key, region_id, region_desc
-            Suggested fix: Use 'fact_sales' joined with 'dim_geography' on geography_key
+When you receive:
+    PROCEED_TO_DATABASE: [SQL_QUERY]
 
-    2. For invalid queries, specify exactly what's wrong:
-       - Syntax errors
-       - Missing tables/columns (reference schema if needed)
-       - Logical inconsistencies
-       - Suggestions for correction
+Do the following:
 
-    3. Always maintain SQL best practices (parameterization, etc.)
+1. Directly execute the SQL query on the database — no validation or analysis.
 
-    IMPORTANT: When a query is valid, DO NOT just respond with "RESULT: [query_results]". Instead, actually execute the query and show the real results from the database.
+2. If the query executes successfully:
+    - Return the actual query result (not a placeholder).
+    - Format as: RESULT: [query_result]
+
+3. If execution fails due to any reason (e.g., syntax error, missing column/table, logic issues):
+    - DO NOT attempt to fix it.
+    - DO NOT generate a new query.
+    - Instead, return:
+        ROUTE_TO_FORMULATION_AGENT:
+        The query failed because:
+        - [List clear reasons based on the error]
+        - [If possible, include hints from the database error to guide correction]
+
+IMPORTANT:
+- Do not guess or modify queries.
+- Only act based on the query received.
+- If the failure reason includes a hallucinated column/table, specify it clearly in the error.
+- When a query is valid, DO NOT just respond with "RESULT: [query_results]". Instead, actually execute the query and show the real results from the database.
     """
 
     def execute_with_schema(query):
