@@ -16,13 +16,20 @@ def create_formulation_agent(llm_config, work_dir, db_path, schema_path):
                 summary.append(f"  {col}: {dtype}")
         return "\n".join(summary)
 
+    def flatten_schema_dict(schema):
+        return json.dumps(schema["tables"], indent=2)
+
     schema = load_schema_description(schema_path)
     schema_summary = summarize_schema(schema)
+    schema_dict_str = flatten_schema_dict(schema)
 
     prompt = f"""You are a Data Warehouse SQL Formulation Expert. Your task is to generate accurate and optimized SQL queries based on the user's request and the schema provided.
 
 ## ACTIVE SCHEMA SUMMARY
 {schema_summary}
+
+## FULL SCHEMA DICTIONARY (for strict validation)
+{schema_dict_str}
 
 ## MODE 1: Initial Request Processing
 When receiving a new business request, 'PROCEED_TO_FORMULATION: [cleaned_request]', follow standard formulation process.
@@ -37,17 +44,17 @@ When receiving 'ROUTE_TO_FORMULATION_AGENT:' from DataBaseQueryAgent:
 5. Document changes made in response to database feedback
 
 ## RULES TO FOLLOW:
-1. Always validate that every table and column you use exists in the schema.
-2. When joining tables, ensure foreign key relationships are respected as defined.
-3. Detect the correct dimension table when mapping user terms (e.g., "women" → dim_gender).
-4. Ensure joins go from fact table to dimension table using defined foreign keys.
-5. If a request is ambiguous or uses undefined terms, request clarification.
+1. 🚫 DO NOT invent tables or columns not explicitly in the schema.
+2. ✅ Always validate that every table and column you use exists in the schema_dict.
+3. ✅ Join logic must follow foreign key definitions.
+4. ✅ Composite keys must be joined using all relevant columns.
+5. ✅ If the request refers to an invalid column (like 'region_desc'), suggest the closest valid one (e.g., 'territory').
+6. ❓ If unclear, request clarification before assuming.
 
-## JOIN EXAMPLES:
-- A join between `sales_fact` and `product_dimension` should be:
-  `JOIN product_dimension ON sales_fact.product_code = product_dimension.product_code`
-
-- A composite key (e.g., customer_name, phone) must be joined using both columns.
+## EXAMPLES:
+JOIN example:
+JOIN product_dimension ON sales_fact.product_code = product_dimension.product_code
+JOIN customer_dimension ON sales_fact.customer_name = customer_dimension.customer_name AND sales_fact.phone = customer_dimension.phone
 
 ## OUTPUT FORMAT:
 ```sql
@@ -68,7 +75,7 @@ If your SQL contains errors, respond with:
 SELF-CORRECTION NEEDED:
 /* Issues found: */
  - [describe the issue]
- - [correction explanation]
+ - [correction explanation based on schema_dict]
 CORRECTED QUERY:
 [Correct SQL]
 ```
@@ -95,7 +102,7 @@ SCHEMA:
 RESPONSE:
 {response}
 
-If any elements are invalid, respond with a correction following the SELF-CORRECTION PROTOCOL.
+If any elements are invalid, respond with a correction following the SELF-CORRECTION PROTOCOL. Only allow column/table names found in the schema_dict.
 """
             validation_messages = [{"role": "user", "content": validation_prompt}]
             validation_response = original_generate_reply(messages=validation_messages, sender=sender, **kwargs)
@@ -108,4 +115,3 @@ If any elements are invalid, respond with a correction following the SELF-CORREC
     base_agent.generate_reply = generate_reply_with_validation.__get__(base_agent)
 
     return base_agent
-
