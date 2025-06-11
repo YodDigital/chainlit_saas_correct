@@ -65,10 +65,12 @@ def execute_query(query, schema, db_path):
         # Skip aliased/generated columns
         missing_cols = [
             col for col in all_cols
-            if '.' not in col and col not in schema['columns']
+            if '.' not in col and col.lower() not in schema['columns']
         ]
         if missing_cols:
-            return f"ERROR: Columns not found in schema: {missing_cols}. Available columns: {list(schema['columns'].keys())}"
+            available_cols = list(schema["columns"].keys())
+            return f"ERROR: Columns not found in schema: {missing_cols}. Available columns: {available_cols}"
+
 
         # Execute query
         connection = sqlite3.connect(db_path)
