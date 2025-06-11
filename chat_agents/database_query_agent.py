@@ -28,51 +28,15 @@ def load_actual_schema(db_path):
 
 def execute_query(query, schema, db_path):
     try:
-        # Extract referenced tables
+         # Extract referenced tables
         tables_in_query = set(re.findall(r'\bFROM\s+(\w+)|\bJOIN\s+(\w+)', query, re.IGNORECASE))
         tables_in_query = {t for pair in tables_in_query for t in pair if t}
 
-        # Validate tables
+        # Validate tables exist
         for table in tables_in_query:
             if table not in schema["tables"]:
-                return f"ERROR: Table '{table}' doesn't exist. Available tables: {list(schema['tables'].keys())}"
-
-        # Extract columns from SELECT and WHERE, ignoring aliases and functions
-        sql_keywords = {'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'GROUP', 'BY', 'ORDER', 'LIMIT', 'HAVING', 'DISTINCT', '=','<', '>', '<=', '>=', '!=', 'IS', 'NULL', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'EXISTS', 'UNION', 'INTERSECT', 'EXCEPT', 'ALL', 'ANY', 'SOME', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'EXTRACT', 'WITH', 'CROSS', 'NATURAL', 'LEFT', 'RIGHT', 'FULL', 'OUTER', 'INNER'}
-        sql_keywords = {kw.upper() for kw in sql_keywords}
-
-        def extract_column_names(block):
-            block = block.strip()
-            if not block:
-                return []
-            # Remove functions: SUM(col) -> col
-            block = re.sub(r'\b\w+\s*\((.*?)\)', r'\1', block)
-            # Remove aliases: col AS alias -> col
-            block = re.sub(r'\bAS\b\s+\w+', '', block, flags=re.IGNORECASE)
-            # Split by commas or spaces
-            tokens = re.split(r'[,\s]+', block)
-            return [t.strip() for t in tokens if t.strip() and t.upper() not in sql_keywords]
-
-        column_blocks = re.findall(
-            r'SELECT\s+(.*?)\s+FROM|WHERE\s+(.*?)\s*(?:AND|OR|GROUP BY|ORDER BY|LIMIT|;|$)',
-            query, re.IGNORECASE
-        )
-
-        all_cols = set()
-        for block1, block2 in column_blocks:
-            for part in [block1, block2]:
-                all_cols.update(extract_column_names(part))
-
-        # Skip aliased/generated columns
-        missing_cols = [
-            col for col in all_cols
-            if '.' not in col and col.lower() not in schema['columns']
-        ]
-        if missing_cols:
-            available_cols = list(schema["columns"].keys())
-            return f"ERROR: Columns not found in schema: {missing_cols}. Available columns: {available_cols}"
-
-
+                return f"ROUTE_TO_FORMULATION_AGENT:\nThe query failed because:\n- Table '{table}' does not exist. Available tables: {list(schema['tables'].keys())}"
+       
         # Execute query
         connection = sqlite3.connect(db_path)
         cursor = connection.cursor()
@@ -94,7 +58,7 @@ def execute_query(query, schema, db_path):
         return "\n".join(formatted_results)
 
     except Exception as e:
-        return f"ERROR: {str(e)}"
+         return f"ROUTE_TO_FORMULATION_AGENT:\nThe query failed because:\n- {str(e)}"
 
 def create_database_query_agent(db_url, llm_config):
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_file:
