@@ -38,12 +38,26 @@ def execute_query(query, schema, db_path):
                 return f"ERROR: Table '{table}' doesn't exist. Available tables: {list(schema['tables'].keys())}"
 
         # Validate columns
-        columns_in_query = re.findall(r'SELECT\s+(.*?)\s+FROM|WHERE\s+(.*?)\s*(?:AND|OR|GROUP BY|ORDER BY|LIMIT|;|$)', query, re.IGNORECASE)
-        flat_cols = [col for pair in columns_in_query for col in pair if col]
+        sql_keywords = {'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'GROUP', 'BY', 'ORDER', 'LIMIT', 'HAVING', 'DISTINCT'}
+
+        def clean_column_expr(expr):
+            # Remove functions like SUM(), COUNT(), etc.
+            expr = re.sub(r'\b\w+\s*\(\s*(\w+)\s*\)', r'\1', expr)
+            return expr.strip()
+
+        column_blocks = re.findall(
+            r'SELECT\s+(.*?)\s+FROM|WHERE\s+(.*?)\s*(?:AND|OR|GROUP BY|ORDER BY|LIMIT|;|$)',
+            query, re.IGNORECASE
+        )
+
         all_cols = set()
-        for col_block in flat_cols:
-            col_candidates = re.split(r'[ ,]+', col_block.strip())
-            all_cols.update([col.strip() for col in col_candidates if col.strip()])
+        for block1, block2 in column_blocks:
+            for part in [block1, block2]:
+                if part:
+                    for token in re.split(r'[ ,]+', part.strip()):
+                        cleaned = clean_column_expr(token)
+                        if cleaned and cleaned.upper() not in sql_keywords:
+                            all_cols.add(cleaned)
 
         missing_cols = [col for col in all_cols if '.' not in col and col not in schema['columns']]
         if missing_cols:
