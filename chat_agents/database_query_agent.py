@@ -37,13 +37,20 @@ def execute_query(query, schema, db_path):
             if table not in schema["tables"]:
                 return f"ERROR: Table '{table}' doesn't exist. Available tables: {list(schema['tables'].keys())}"
 
-        # Validate columns
+        # Extract columns from SELECT and WHERE, ignoring aliases and functions
         sql_keywords = {'SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AS', 'AND', 'OR', 'GROUP', 'BY', 'ORDER', 'LIMIT', 'HAVING', 'DISTINCT'}
 
-        def clean_column_expr(expr):
-            # Remove functions like SUM(), COUNT(), etc.
-            expr = re.sub(r'\b\w+\s*\(\s*(\w+)\s*\)', r'\1', expr)
-            return expr.strip()
+        def extract_column_names(block):
+            block = block.strip()
+            if not block:
+                return []
+            # Remove functions: SUM(col) -> col
+            block = re.sub(r'\b\w+\s*\((.*?)\)', r'\1', block)
+            # Remove aliases: col AS alias -> col
+            block = re.sub(r'\bAS\b\s+\w+', '', block, flags=re.IGNORECASE)
+            # Split by commas or spaces
+            tokens = re.split(r'[,\s]+', block)
+            return [t.strip() for t in tokens if t.strip() and t.upper() not in sql_keywords]
 
         column_blocks = re.findall(
             r'SELECT\s+(.*?)\s+FROM|WHERE\s+(.*?)\s*(?:AND|OR|GROUP BY|ORDER BY|LIMIT|;|$)',
@@ -53,13 +60,13 @@ def execute_query(query, schema, db_path):
         all_cols = set()
         for block1, block2 in column_blocks:
             for part in [block1, block2]:
-                if part:
-                    for token in re.split(r'[ ,]+', part.strip()):
-                        cleaned = clean_column_expr(token)
-                        if cleaned and cleaned.upper() not in sql_keywords:
-                            all_cols.add(cleaned)
+                all_cols.update(extract_column_names(part))
 
-        missing_cols = [col for col in all_cols if '.' not in col and col not in schema['columns']]
+        # Skip aliased/generated columns
+        missing_cols = [
+            col for col in all_cols
+            if '.' not in col and col not in schema['columns']
+        ]
         if missing_cols:
             return f"ERROR: Columns not found in schema: {missing_cols}. Available columns: {list(schema['columns'].keys())}"
 
@@ -70,11 +77,7 @@ def execute_query(query, schema, db_path):
         results = cursor.fetchall()
 
         # Get column names
-        if cursor.description:
-            column_names = [col[0] for col in cursor.description]
-        else:
-            column_names = []
-
+        column_names = [col[0] for col in cursor.description] if cursor.description else []
         connection.close()
 
         if not results:
@@ -89,7 +92,6 @@ def execute_query(query, schema, db_path):
 
     except Exception as e:
         return f"ERROR: {str(e)}"
-
 
 def create_database_query_agent(db_url, llm_config):
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_file:
