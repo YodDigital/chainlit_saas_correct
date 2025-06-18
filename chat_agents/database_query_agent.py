@@ -35,7 +35,8 @@ def execute_query(query, schema, db_path):
         # Validate tables exist
         for table in tables_in_query:
             if table not in schema["tables"]:
-                return f"ROUTE_TO_FORMULATION_AGENT:\nThe query failed because:\n- Table '{table}' does not exist. Available tables: {list(schema['tables'].keys())}"
+                avaliable_tables = list(schema["tables"].keys())
+                return f"ROUTE_TO_FORMULATION_AGENT:\nThe query failed because:\n- Table '{table}' does not exist. Available tables: {avaliable_tables}"
        
         # Execute query
         connection = sqlite3.connect(db_path)
