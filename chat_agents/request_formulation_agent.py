@@ -11,7 +11,7 @@ def load_actual_schema(db_path):
 
     schema = {"tables": {}}
 
-    tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()
 
     for table in tables:
         table_name = table[0]

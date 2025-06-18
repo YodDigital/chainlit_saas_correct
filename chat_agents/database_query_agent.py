@@ -6,27 +6,27 @@ import urllib.request
 import tempfile
 
 
-def load_actual_schema(db_path):
-    """Dynamically loads the REAL schema from the database, including columns for each table"""
-    conn = sqlite3.connect(db_path)
-    schema = {"tables": {}, "columns": {}}
+# def load_actual_schema(db_path):
+#     """Dynamically loads the REAL schema from the database, including columns for each table"""
+#     conn = sqlite3.connect(db_path)
+#     schema = {"tables": {}, "columns": {}}
 
-    # Get all tables
-    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+#     # Get all tables
+#     tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
 
-    for table in tables:
-        table_name = table[0]
-        cols = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-        column_names = [col[1] for col in cols]  # col[1] = column name
-        schema["tables"][table_name] = column_names
-        for col in column_names:
-            schema["columns"][col] = table_name  # map column to table (last wins)
+#     for table in tables:
+#         table_name = table[0]
+#         cols = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+#         column_names = [col[1] for col in cols]  # col[1] = column name
+#         schema["tables"][table_name] = column_names
+#         for col in column_names:
+#             schema["columns"][col] = table_name  # map column to table (last wins)
 
-    conn.close()
-    return schema
+#     conn.close()
+#     return schema
 
 
-def execute_query(query, schema, db_path):
+def execute_query(query, db_path):
     try:
        
         # Execute query
@@ -57,7 +57,7 @@ def create_database_query_agent(db_url, llm_config):
         urllib.request.urlretrieve(db_url, tmp_file.name)
         db_path = tmp_file.name
 
-    real_schema = load_actual_schema(db_path)
+    # real_schema = load_actual_schema(db_path)
 
     prompt = f"""
 You are the Database Query Agent.
@@ -92,7 +92,7 @@ IMPORTANT:
     """
 
     def execute_with_schema(query):
-        return execute_query(query, real_schema, db_path)
+        return execute_query(query, db_path)
 
     base_agent = ChainlitAssistantAgent(
         name="DatabaseQueryAgent",
