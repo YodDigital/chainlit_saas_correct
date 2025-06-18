@@ -1,25 +1,51 @@
+import tempfile
 from autogen import AssistantAgent
+import urllib
 from .chainlit_agents import ChainlitAssistantAgent
 import sqlite3
 import json
 
-def create_formulation_agent(llm_config, work_dir, db_path, schema_path):
-    def load_schema_description(schema_path):
-        with open(schema_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+def load_actual_schema(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
 
-    def summarize_schema(schema):
-        summary = []
-        for table, details in schema["tables"].items():
-            summary.append(f"Table: {table}")
-            for col, dtype in details["columns"].items():
-                summary.append(f"  {col}: {dtype}")
-        return "\n".join(summary)
+    schema = {"tables": {}}
 
-    def flatten_schema_dict(schema):
-        return json.dumps(schema["tables"], indent=2)
+    tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
 
-    schema = load_schema_description(schema_path)
+    for table in tables:
+        table_name = table[0]
+        columns_info = cursor.execute(f"PRAGMA table_info({table_name})").fetchall()
+        column_dict = {}
+
+        for col in columns_info:
+            col_name = col[1]
+            col_type = col[2]
+            column_dict[col_name] = col_type
+
+        schema["tables"][table_name] = {"columns": column_dict}
+
+    conn.close()
+    return schema
+    
+def summarize_schema(schema):
+    summary = []
+    for table, details in schema["tables"].items():
+        summary.append(f"Table: {table}")
+        for col, dtype in details["columns"].items():
+            summary.append(f"  {col}: {dtype}")
+    return "\n".join(summary)
+
+def flatten_schema_dict(schema):
+    return json.dumps(schema["tables"], indent=2)
+
+def create_formulation_agent(llm_config, work_dir, db_url, schema_path):
+    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp_file:
+        urllib.request.urlretrieve(db_url, tmp_file.name)
+        db_path = tmp_file.name
+
+    
+    schema = load_actual_schema(db_path)
     schema_summary = summarize_schema(schema)
     schema_dict_str = flatten_schema_dict(schema)
 
