@@ -28,15 +28,6 @@ def load_actual_schema(db_path):
 
 def execute_query(query, schema, db_path):
     try:
-         # Extract referenced tables
-        tables_in_query = set(re.findall(r'\bFROM\s+(\w+)|\bJOIN\s+(\w+)', query, re.IGNORECASE))
-        tables_in_query = {t for pair in tables_in_query for t in pair if t}
-
-        # Validate tables exist
-        for table in tables_in_query:
-            if table not in schema["tables"]:
-                existing_tables = list(schema["tables"].keys())
-                return f"ROUTE_TO_FORMULATION_AGENT:\nThe query failed because:\n- Table '{table}' does not exist. Available tables: {existing_tables}"
        
         # Execute query
         connection = sqlite3.connect(db_path)
